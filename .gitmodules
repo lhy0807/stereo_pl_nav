@@ -1,0 +1,3 @@
+[submodule "scripts/mobilestereonet"]
+	path = scripts/mobilestereonet
+	url = https://github.com/lhy0807/mobilestereonet.git
