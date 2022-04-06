@@ -138,7 +138,7 @@ def main():
     vid = cv2.VideoCapture(0)
     vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1344)
     vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 376)
-    FRAME_WIDTH = int(2560/2)
+    FRAME_WIDTH = int(1344/2)
 
     bridge = CvBridge()
     raw_left_image_pub = rospy.Publisher("/left_cam/image_color", Image, queue_size=10)

@@ -19,7 +19,6 @@ from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=logger)
-
 CURR_DIR = os.path.dirname(__file__)
 
 class Stereo():
@@ -77,14 +76,12 @@ class Stereo():
             self.disp_image_pub.publish(
                 self.bridge.cv2_to_imgmsg(kitti_colormap(disp_est), "bgr8"))
 
-            # cv2.imshow("disp", kitti_colormap(disp_est))
-            # plt.show()
-            # disp_est[disp_est < 0] = 0
-            # baseline = b_x
-            # mask = disp_est > 0
-            # depth = f_u * baseline / (disp_est + 1. - mask)
-            # plt.imshow(depth, cmap="plasma")
-            # plt.show()
+            disp_est[disp_est < 0] = 0
+            baseline = -b_x/1e3
+            mask = disp_est > 0
+            depth = f_u * baseline / (disp_est + 1. - mask)
+            self.depth_image_pub.publish(
+                self.bridge.cv2_to_imgmsg(depth))
             
     def __init__(self) -> None:
         self.bridge = CvBridge()
@@ -100,6 +97,8 @@ class Stereo():
         rospy.Subscriber("/right_cam/camera_info", CameraInfo, self.listen_camera_info, queue_size=10)
         self.disp_image_pub = rospy.Publisher(
             "/disp_map", Image, queue_size=1)
+        self.depth_image_pub = rospy.Publisher(
+            "/depth_map", Image, queue_size=1)
 
         self.load_model()
 
