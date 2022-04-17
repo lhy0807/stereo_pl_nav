@@ -117,6 +117,8 @@ class Voxel2D(nn.Module):
                                       nn.Conv2d(self.hg_size, self.hg_size, kernel_size=3, padding=1, stride=1,
                                                 bias=False, dilation=1))
 
+        self.sigmoid = nn.Sigmoid()
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -167,8 +169,11 @@ class Voxel2D(nn.Module):
         cost0 = self.dres1(cost0) + cost0
 
         out1 = self.encoder_decoder1(cost0)  # [2, hg_size, 64, 128]
+        out1 = self.sigmoid(out1)
         out2 = self.encoder_decoder2(out1)
+        out2 = self.sigmoid(out2)
         out3 = self.encoder_decoder3(out2)
+        out3 = self.sigmoid(out3)
 
         if self.training:
             return [out1, out2, out3]

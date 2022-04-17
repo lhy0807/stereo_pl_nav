@@ -16,10 +16,12 @@ from tqdm import tqdm, trange
 from models.MSNet2D import MSNet2D
 from models.MSNet3D import MSNet3D
 from models.Voxel2D import Voxel2D
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 import coloredlogs, logging
 from datasets import VoxelDataset, SceneFlowDataset
 import torch.nn.functional as F
+import traceback
+from torchmetrics.functional import jaccard_index
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
@@ -79,6 +81,7 @@ if __name__ == '__main__':
     # result list
     loss_list = []
     acc_list = []
+    iou_list = []
 
     test_dataset = VoxelDataset(DATAPATH, DATALIST, training=False)
     TestImgLoader = DataLoader(test_dataset, 3, shuffle=True, num_workers=6, drop_last=False)
@@ -147,13 +150,13 @@ if __name__ == '__main__':
 
                 vox_grid,cloud_np  = calc_voxel_grid(filtered_cloud, voxel_size=VOXEL_SIZE)
 
-                loss = F.cross_entropy(torch.Tensor(vox_grid_gt), torch.Tensor(vox_grid))
-                acc = accuracy_score(vox_grid_gt.ravel(),vox_grid.ravel())
-
+                loss = F.cross_entropy(torch.from_numpy(vox_grid_gt), torch.from_numpy(vox_grid))
+                iou = jaccard_index(torch.from_numpy(vox_grid).type(torch.IntTensor), torch.from_numpy(vox_grid_gt).type(torch.IntTensor), num_classes=2)
+                
                 loss_list.append(loss)
-                acc_list.append(int(acc*100))
+                iou_list.append(iou)
 
-                t.set_description(f"Average Loss is {Average(loss_list)}, Accuracy is {Average(acc_list)}%")
+                t.set_description(f"Loss is {Average(loss_list)}, IoU is {Average(iou_list)}")
                 t.refresh()
         except Exception as e:
-            logger.warning(f"Something bad happended {e}")
+            logger.warning(f"Something bad happended {traceback.format_exc()}")

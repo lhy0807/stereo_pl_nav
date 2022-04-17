@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from datasets import __datasets__
 from models import __models__, model_loss
 from utils import *
+from torchmetrics.functional import jaccard_index
 
 cudnn.benchmark = True
 
@@ -23,8 +24,8 @@ parser.add_argument('--dataset', required=True, help='dataset name', choices=__d
 parser.add_argument('--datapath', required=True, help='data path')
 parser.add_argument('--trainlist', required=True, help='training list')
 parser.add_argument('--testlist', required=True, help='testing list')
-parser.add_argument('--lr', type=float, default=0.001, help='base learning rate')
-# parser.add_argument('--lrepochs', type=str, required=True, help='the epochs to decay lr: the downscale rate')
+parser.add_argument('--lr', type=float, default=1e-6, help='base learning rate')
+parser.add_argument('--lrepochs', type=str, required=True, help='the epochs to decay lr: the downscale rate')
 parser.add_argument('--batch_size', type=int, default=4, help='training batch size')
 parser.add_argument('--test_batch_size', type=int, default=4, help='testing batch size')
 parser.add_argument('--epochs', type=int, required=True, help='number of epochs to train')
@@ -32,7 +33,7 @@ parser.add_argument('--logdir', required=True, help='the directory to save logs 
 parser.add_argument('--loadckpt', help='load the weights from a specific checkpoint')
 parser.add_argument('--resume', action='store_true', help='continue training the model')
 parser.add_argument('--seed', type=int, default=1, metavar='S', help='random seed (default: 1)')
-parser.add_argument('--summary_freq', type=int, default=200, help='the frequency of saving summary')
+parser.add_argument('--summary_freq', type=int, default=100, help='the frequency of saving summary')
 parser.add_argument('--save_freq', type=int, default=1, help='the frequency of saving checkpoint')
 
 # parse arguments, set seeds
@@ -57,7 +58,7 @@ logger = SummaryWriter(args.logdir)
 StereoDataset = __datasets__[args.dataset]
 train_dataset = StereoDataset(args.datapath, args.trainlist, True)
 test_dataset = StereoDataset(args.datapath, args.testlist, False)
-TrainImgLoader = DataLoader(train_dataset, args.batch_size, shuffle=True, num_workers=8, drop_last=True)
+TrainImgLoader = DataLoader(train_dataset, args.batch_size, shuffle=True, num_workers=4, drop_last=True)
 TestImgLoader = DataLoader(test_dataset, args.test_batch_size, shuffle=False, num_workers=4, drop_last=False)
 
 # model, optimizer
@@ -90,18 +91,18 @@ print("Start at epoch {}".format(start_epoch))
 def train():
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
-        # adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
+        adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
 
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx
             start_time = time.time()
             do_summary = global_step % args.summary_freq == 0
-            loss, scalar_outputs, image_outputs = train_sample(sample, compute_metrics=do_summary)
+            loss, scalar_outputs, voxel_outputs = train_sample(sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'train', scalar_outputs, global_step)
-                save_images(logger, 'train', image_outputs, global_step)
-            del scalar_outputs, image_outputs
+                save_voxel(logger, 'train', voxel_outputs, global_step)
+            del scalar_outputs, voxel_outputs
             print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                        batch_idx,
                                                                                        len(TrainImgLoader), loss,
@@ -154,23 +155,20 @@ def train_sample(sample, compute_metrics=False):
 
     optimizer.zero_grad()
 
-    disp_ests = model(imgL, imgR)
-    loss = model_loss(disp_ests, voxel_gt)
+    voxel_ests = model(imgL, imgR)
+    loss = model_loss(voxel_ests, voxel_gt)
 
+    voxel_ests = voxel_ests[-1]
     scalar_outputs = {"loss": loss}
-    image_outputs = {"disp_est": disp_ests, "disp_gt": disp_gt, "imgL": imgL, "imgR": imgR}
+    voxel_outputs = []
     if compute_metrics:
         with torch.no_grad():
-            image_outputs["errormap"] = [disp_error_image_func(disp_est, disp_gt) for disp_est in disp_ests]
-            scalar_outputs["EPE"] = [EPE_metric(disp_est, disp_gt, mask) for disp_est in disp_ests]
-            scalar_outputs["D1"] = [D1_metric(disp_est, disp_gt, mask) for disp_est in disp_ests]
-            scalar_outputs["Thres1"] = [Thres_metric(disp_est, disp_gt, mask, 1.0) for disp_est in disp_ests]
-            scalar_outputs["Thres2"] = [Thres_metric(disp_est, disp_gt, mask, 2.0) for disp_est in disp_ests]
-            scalar_outputs["Thres3"] = [Thres_metric(disp_est, disp_gt, mask, 3.0) for disp_est in disp_ests]
+            voxel_outputs = [voxel_ests[0], voxel_gt[0]]
+            scalar_outputs["IoU"] = [jaccard_index(voxel_est, voxel_gt[idx].type(torch.IntTensor).cuda(), num_classes=2, threshold=0.5) for idx, voxel_est in enumerate(voxel_ests)]
     loss.backward()
     optimizer.step()
 
-    return tensor2float(loss), tensor2float(scalar_outputs), image_outputs
+    return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
 
 # test one sample
@@ -184,8 +182,7 @@ def test_sample(sample, compute_metrics=True):
     voxel_gt = voxel_gt.cuda()
 
     disp_ests = model(imgL, imgR)
-    mask = (disp_gt < args.maxdisp) & (disp_gt > 0)
-    loss = model_loss(disp_ests, disp_gt, mask)
+    loss = model_loss(disp_ests, voxel_gt)
 
     scalar_outputs = {"loss": loss}
     image_outputs = {"disp_est": disp_ests, "disp_gt": disp_gt, "imgL": imgL, "imgR": imgR}

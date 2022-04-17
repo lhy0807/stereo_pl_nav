@@ -5,7 +5,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 import numpy as np
 import copy
-
+from tensorboardX import SummaryWriter
 
 def make_iterative_func(func):
     def wrapper(vars):
@@ -55,7 +55,7 @@ def check_allfloat(vars):
     assert isinstance(vars, float)
 
 
-def save_scalars(logger, mode_tag, scalar_dict, global_step):
+def save_scalars(logger: SummaryWriter, mode_tag, scalar_dict, global_step):
     scalar_dict = tensor2float(scalar_dict)
     for tag, values in scalar_dict.items():
         if not isinstance(values, list) and not isinstance(values, tuple):
@@ -83,6 +83,28 @@ def save_images(logger, mode_tag, images_dict, global_step):
                 image_name = image_name + "_" + str(idx)
             logger.add_image(image_name, vutils.make_grid(value, padding=0, nrow=1, normalize=True, scale_each=True),
                              global_step)
+
+def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step):
+    vox_pred = torch.detach(vox_grid[0]).cpu().numpy()
+    vox_gt = torch.detach(vox_grid[1]).cpu().numpy()
+
+    vox_pred[vox_pred < 0.5] = 0
+    vox_pred[vox_pred >= 0.5] = 1
+
+    voxel_size = 0.05
+    offsets = np.array([24, 20, 0])
+
+    xyz_pred = np.asarray(np.where(vox_pred == 1)) # get back indexes of populated voxels
+    cloud_pred = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
+
+    xyz_gt = np.asarray(np.where(vox_gt == 1)) # get back indexes of populated voxels
+    cloud_gt = np.asarray([(pt-offsets)*voxel_size for pt in xyz_gt.T])
+
+    cloud_merged = np.concatenate([cloud_gt, cloud_pred])
+    cloud_color = np.zeros(cloud_merged.shape)
+    cloud_color[:cloud_gt.shape[0], 1] = 1
+    cloud_color[cloud_gt.shape[0]:, 0] = 1
+    logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0))
 
 
 def adjust_learning_rate(optimizer, epoch, base_lr, lrepochs):
