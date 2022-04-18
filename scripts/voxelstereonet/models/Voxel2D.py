@@ -42,8 +42,8 @@ class hourglass2D(nn.Module):
         conv3 = self.conv3(conv2)
         conv4 = self.conv4(conv3)
 
-        conv5 = F.tanh(self.conv5(conv4) + self.redir2(conv2))
-        conv6 = F.tanh(self.conv6(conv5) + self.redir1(x))
+        conv5 = F.relu(self.conv5(conv4) + self.redir2(conv2))
+        conv6 = F.relu(self.conv6(conv5) + self.redir1(x))
 
         return conv6
 
@@ -103,7 +103,8 @@ class Voxel2D(nn.Module):
 
         self.encoder_decoder3 = hourglass2D(self.hg_size)
 
-        self.sigmoid = nn.Sigmoid()
+        self.output_layer = nn.Sequential(MobileV2_Residual(self.hg_size, self.hg_size, 1, self.dres_expanse_ratio),
+                                            nn.Sigmoid())
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -198,7 +199,7 @@ class Voxel2D(nn.Module):
         out3 = self.encoder_decoder3(out2)
 
         if self.training:
-            return [self.sigmoid(out1), self.sigmoid(out2), self.sigmoid(out3)]
+            return [self.output_layer(out1), self.output_layer(out2), self.output_layer(out3)]
 
         else:
-            return [self.sigmoid(out3)]
+            return [self.output_layer(out3)]
