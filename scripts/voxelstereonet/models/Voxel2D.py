@@ -42,8 +42,8 @@ class hourglass2D(nn.Module):
         conv3 = self.conv3(conv2)
         conv4 = self.conv4(conv3)
 
-        conv5 = F.relu(self.conv5(conv4) + self.redir2(conv2), inplace=True)
-        conv6 = F.relu(self.conv6(conv5) + self.redir1(x), inplace=True)
+        conv5 = F.tanh(self.conv5(conv4) + self.redir2(conv2))
+        conv6 = F.tanh(self.conv6(conv5) + self.redir1(x))
 
         return conv6
 

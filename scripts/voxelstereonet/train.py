@@ -161,7 +161,7 @@ def train():
                 save_scalars(logger, 'test', scalar_outputs, global_step)
                 save_voxel(logger, 'test', voxel_outputs, global_step,
                            args.logdir, scalar_outputs["IoU"] < 0.01)
-                print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
+                print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
                                                                                                              TestImgLoader), loss,

@@ -5,9 +5,7 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from utils import *
 from utils.KittiColormap import *
-from pyntcloud import PyntCloud
 import pandas as pd
-from cv_bridge import CvBridge
 import cv2
 import matplotlib.pyplot as plt
 from datasets.data_io import get_transform, read_all_lines, pfm_imread

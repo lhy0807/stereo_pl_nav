@@ -1,0 +1,1 @@
+srun --partition=gpu --gres=gpu:p100:1 --time=08:00:00 --cpus-per-task=10 --pty /bin/bash
