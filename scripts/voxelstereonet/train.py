@@ -47,7 +47,7 @@ parser.add_argument('--resume', action='store_true',
                     help='continue training the model')
 parser.add_argument('--seed', type=int, default=1,
                     metavar='S', help='random seed (default: 1)')
-parser.add_argument('--summary_freq', type=int, default=50,
+parser.add_argument('--summary_freq', type=int, default=100,
                     help='the frequency of saving summary')
 parser.add_argument('--save_freq', type=int, default=1,
                     help='the frequency of saving checkpoint')
@@ -85,6 +85,8 @@ model = nn.DataParallel(model)
 model.cuda()
 optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999))
 
+model.module.load_mobile_stereo()
+
 # load parameters
 start_epoch = 0
 if args.resume:
@@ -107,8 +109,6 @@ elif args.loadckpt:
     model.load_state_dict(state_dict['model'])
 print("Start at epoch {}".format(start_epoch))
 
-model.module.load_mobile_stereo()
-
 summary(model, [(1,3,256,512),(1,3,256,512)])
 
 def train():
@@ -126,7 +126,7 @@ def train():
             if do_summary:
                 save_scalars(logger, 'train', scalar_outputs, global_step)
                 save_voxel(logger, 'train', voxel_outputs, global_step,
-                           args.logdir, scalar_outputs["IoU"] < 0.01)
+                           args.logdir, scalar_outputs["IoU"] < 0.1)
                 print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
@@ -160,7 +160,7 @@ def train():
             if do_summary:
                 save_scalars(logger, 'test', scalar_outputs, global_step)
                 save_voxel(logger, 'test', voxel_outputs, global_step,
-                           args.logdir, scalar_outputs["IoU"] < 0.01)
+                           args.logdir, scalar_outputs["IoU"] < 0.1)
                 print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
@@ -213,8 +213,23 @@ def train_sample(sample, compute_metrics=False):
     if compute_metrics:
         with torch.no_grad():
             voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-            scalar_outputs["IoU"] = torch.mean(torch.Tensor([jaccard_index(voxel_est, voxel_gt[idx].type(torch.IntTensor).cuda(
-            ), num_classes=2, threshold=0.5) for idx, voxel_est in enumerate(voxel_ests)]))
+            IoU_list = []
+            for idx, voxel_est in enumerate(voxel_ests):
+                voxel_est_np = voxel_est.cpu().numpy()
+                voxel_est_np[voxel_est_np > 0.5] = 1
+                voxel_est_np[voxel_est_np <= 0.5] = 0
+                voxel_est_np = voxel_est_np.astype(bool)
+
+                voxel_gt_np = voxel_gt[idx].cpu().numpy()
+                voxel_gt_np = voxel_gt_np.astype(bool)
+
+                overlap = voxel_gt_np*voxel_est_np # Logical AND
+                union = voxel_gt_np+voxel_est_np # Logical OR
+
+                IoU = overlap.sum()/float(union.sum())
+                IoU_list.append(IoU)
+            scalar_outputs["IoU"] = np.mean(IoU_list)
+
     loss.backward()
     optimizer.step()
 

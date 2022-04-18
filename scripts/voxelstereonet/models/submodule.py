@@ -280,7 +280,10 @@ def disparity_regression(x, maxdisp):
 
 def model_loss(voxel_ests, voxel_gt):
     weights = [0.5, 0.7, 1.0]
+    added_weights = []
     all_losses = []
     for voxel_est, weight in zip(voxel_ests, weights):
+        added_weights.append(weight)
+        # all_losses.append(weight * F.mse_loss(voxel_est.float(), voxel_gt.float()))
         all_losses.append(weight * F.binary_cross_entropy(voxel_est.float(), voxel_gt.float()))
-    return sum(all_losses)
+    return sum(all_losses) / sum(added_weights)
