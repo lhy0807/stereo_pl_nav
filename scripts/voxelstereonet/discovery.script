@@ -1,0 +1,4 @@
+module load gcc/10.1.0
+. "/shared/centos7/anaconda3/2022.01/etc/profile.d/conda.sh"
+conda activate /scratch/li.hongyu1/torch/
+sh train_discovery.sh

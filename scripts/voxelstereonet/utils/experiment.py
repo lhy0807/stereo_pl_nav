@@ -109,8 +109,8 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
 
     cloud_pred = voxel_to_pc(vox_pred)
     cloud_gt = voxel_to_pc(vox_gt)
+    fig = plt.figure()
     try:
-        fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
         ax.scatter(cloud_gt[:,0],cloud_gt[:,1],cloud_gt[:,2],marker="o")
         if not gt_only:
@@ -121,8 +121,6 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         data = np.transpose(data, (2,0,1))
         logger.add_image(mode_tag+"/plot", data, global_step)
-        plt.close(fig)
-
         cloud_merged = np.concatenate([cloud_gt, cloud_pred])
         cloud_color = np.zeros(cloud_merged.shape)
         cloud_color[:cloud_gt.shape[0], 1] = 1
@@ -130,6 +128,7 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
         logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0), global_step=global_step)
     except Exception as e:
         log.error(f"Error occured when saving voxel: {e}")
+    fig = plt.figure()
 
     
 

@@ -93,8 +93,7 @@ if args.resume:
     # find all checkpoints file and sort according to epoch id
     all_saved_ckpts = [fn for fn in os.listdir(
         args.logdir) if fn.endswith(".ckpt")]
-    all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(
-        x.split('_')[-1].split('.')[0]))
+    all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
     # use the latest checkpoint file
     loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
     print("Loading the latest model in logdir: {}".format(loadckpt))
@@ -109,7 +108,8 @@ elif args.loadckpt:
     model.load_state_dict(state_dict['model'])
 print("Start at epoch {}".format(start_epoch))
 
-summary(model, [(1,3,256,512),(1,3,256,512)])
+summary(model, [(1, 3, 256, 512), (1, 3, 256, 512)])
+
 
 def train():
     best_checkpoint_loss = 100
@@ -126,7 +126,7 @@ def train():
             if do_summary:
                 save_scalars(logger, 'train', scalar_outputs, global_step)
                 save_voxel(logger, 'train', voxel_outputs, global_step,
-                           args.logdir, scalar_outputs["IoU"] < 0.1)
+                           args.logdir, False)
                 print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
@@ -160,22 +160,22 @@ def train():
             if do_summary:
                 save_scalars(logger, 'test', scalar_outputs, global_step)
                 save_voxel(logger, 'test', voxel_outputs, global_step,
-                           args.logdir, scalar_outputs["IoU"] < 0.1)
+                           args.logdir, False)
                 print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
-                                                                                                         batch_idx,
-                                                                                                         len(
-                                                                                                             TestImgLoader), loss,
-                                                                                                         scalar_outputs["IoU"],
-                                                                                                         time.time() - start_time))
+                                                                                                        batch_idx,
+                                                                                                        len(
+                                                                                                            TestImgLoader), loss,
+                                                                                                        scalar_outputs["IoU"],
+                                                                                                        time.time() - start_time))
             else:
                 print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
-                                                                                     batch_idx,
-                                                                                     len(
-                                                                                         TestImgLoader), loss,
-                                                                                     time.time() - start_time))
+                                                                                         batch_idx,
+                                                                                         len(
+                                                                                             TestImgLoader), loss,
+                                                                                         time.time() - start_time))
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs, voxel_outputs
-            
+
         avg_test_scalars = avg_test_scalars.mean()
 
         save_scalars(logger, 'fulltest', avg_test_scalars,
@@ -223,8 +223,8 @@ def train_sample(sample, compute_metrics=False):
                 voxel_gt_np = voxel_gt[idx].cpu().numpy()
                 voxel_gt_np = voxel_gt_np.astype(bool)
 
-                overlap = voxel_gt_np*voxel_est_np # Logical AND
-                union = voxel_gt_np+voxel_est_np # Logical OR
+                overlap = voxel_gt_np*voxel_est_np  # Logical AND
+                union = voxel_gt_np+voxel_est_np  # Logical OR
 
                 IoU = overlap.sum()/float(union.sum())
                 IoU_list.append(IoU)
@@ -253,7 +253,7 @@ def test_sample(sample, compute_metrics=True):
     scalar_outputs = {"loss": loss}
     voxel_outputs = [voxel_ests[0], voxel_gt[0]]
     scalar_outputs["IoU"] = torch.mean(torch.Tensor([jaccard_index(voxel_est, voxel_gt[idx].type(torch.IntTensor).cuda(
-            ), num_classes=2, threshold=0.5) for idx, voxel_est in enumerate(voxel_ests)]))
+    ), num_classes=2, threshold=0.5) for idx, voxel_est in enumerate(voxel_ests)]))
 
     return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
