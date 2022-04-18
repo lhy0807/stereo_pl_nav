@@ -6,6 +6,14 @@ import torchvision.utils as vutils
 import numpy as np
 import copy
 from tensorboardX import SummaryWriter
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import coloredlogs, logging
+from mpl_toolkits.mplot3d import Axes3D
+
+log = logging.getLogger(__name__)
+coloredlogs.install(level='DEBUG', logger=log)
 
 def make_iterative_func(func):
     def wrapper(vars):
@@ -84,7 +92,12 @@ def save_images(logger, mode_tag, images_dict, global_step):
             logger.add_image(image_name, vutils.make_grid(value, padding=0, nrow=1, normalize=True, scale_each=True),
                              global_step)
 
-def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step):
+def voxel_to_pc(voxel, voxel_size = 0.05, offsets = np.array([24, 20, 0])):
+    xyz = np.asarray(np.where(voxel == 1)) # get back indexes of populated voxels
+    cloud = np.asarray([(pt-offsets)*voxel_size for pt in xyz.T])
+    return cloud
+
+def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, gt_only):
     vox_pred = torch.detach(vox_grid[0]).cpu().numpy()
     vox_gt = torch.detach(vox_grid[1]).cpu().numpy()
 
@@ -94,17 +107,31 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step):
     voxel_size = 0.05
     offsets = np.array([24, 20, 0])
 
-    xyz_pred = np.asarray(np.where(vox_pred == 1)) # get back indexes of populated voxels
-    cloud_pred = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
+    cloud_pred = voxel_to_pc(vox_pred)
+    cloud_gt = voxel_to_pc(vox_gt)
+    try:
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        ax.scatter(cloud_gt[:,0],cloud_gt[:,1],cloud_gt[:,2],marker="o")
+        if not gt_only:
+            ax.scatter(cloud_pred[:,0],cloud_pred[:,1],cloud_pred[:,2],marker="^")
+        # plt.savefig("scatter.png")
+        fig.canvas.draw()
+        data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        data = np.transpose(data, (2,0,1))
+        logger.add_image(mode_tag+"/plot", data, global_step)
+        plt.close(fig)
 
-    xyz_gt = np.asarray(np.where(vox_gt == 1)) # get back indexes of populated voxels
-    cloud_gt = np.asarray([(pt-offsets)*voxel_size for pt in xyz_gt.T])
+        cloud_merged = np.concatenate([cloud_gt, cloud_pred])
+        cloud_color = np.zeros(cloud_merged.shape)
+        cloud_color[:cloud_gt.shape[0], 1] = 1
+        cloud_color[cloud_gt.shape[0]:, 0] = 1
+        logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0), global_step=global_step)
+    except Exception as e:
+        log.error(f"Error occured when saving voxel: {e}")
 
-    cloud_merged = np.concatenate([cloud_gt, cloud_pred])
-    cloud_color = np.zeros(cloud_merged.shape)
-    cloud_color[:cloud_gt.shape[0], 1] = 1
-    cloud_color[cloud_gt.shape[0]:, 0] = 1
-    logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0))
+    
 
 
 def adjust_learning_rate(optimizer, epoch, base_lr, lrepochs):

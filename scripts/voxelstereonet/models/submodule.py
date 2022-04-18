@@ -282,5 +282,5 @@ def model_loss(voxel_ests, voxel_gt):
     weights = [0.5, 0.7, 1.0]
     all_losses = []
     for voxel_est, weight in zip(voxel_ests, weights):
-        all_losses.append(weight * F.cross_entropy(voxel_est, voxel_gt))
+        all_losses.append(weight * F.binary_cross_entropy(voxel_est.float(), voxel_gt.float()))
     return sum(all_losses)

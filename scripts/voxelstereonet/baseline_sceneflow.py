@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
                 vox_grid,cloud_np  = calc_voxel_grid(filtered_cloud, voxel_size=VOXEL_SIZE)
 
-                loss = F.cross_entropy(torch.from_numpy(vox_grid_gt), torch.from_numpy(vox_grid))
+                loss = F.binary_cross_entropy(torch.from_numpy(vox_grid), torch.from_numpy(vox_grid_gt))
                 iou = jaccard_index(torch.from_numpy(vox_grid).type(torch.IntTensor), torch.from_numpy(vox_grid_gt).type(torch.IntTensor), num_classes=2)
                 
                 loss_list.append(loss)
