@@ -3,7 +3,6 @@ import os
 import gc
 import time
 import argparse
-from torch import Tensor
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.parallel
@@ -14,10 +13,13 @@ from torch.utils.data import DataLoader
 from datasets import __datasets__
 from models import __models__, model_loss
 from utils import *
-from torchmetrics.functional import jaccard_index
 from torchinfo import summary
+import logging
+import coloredlogs
 
 cudnn.benchmark = True
+log = logging.getLogger(__name__)
+coloredlogs.install(level='DEBUG', logger=log)
 
 parser = argparse.ArgumentParser(description='MobileStereoNet')
 parser.add_argument('--model', default='Voxel2D',
@@ -51,6 +53,9 @@ parser.add_argument('--summary_freq', type=int, default=100,
                     help='the frequency of saving summary')
 parser.add_argument('--save_freq', type=int, default=1,
                     help='the frequency of saving checkpoint')
+parser.add_argument('--loader_workers', type=int, default=4,
+                    help='Number of dataloader workers')
+
 
 # parse arguments, set seeds
 args = parser.parse_args()
@@ -75,9 +80,9 @@ StereoDataset = __datasets__[args.dataset]
 train_dataset = StereoDataset(args.datapath, args.trainlist, True)
 test_dataset = StereoDataset(args.datapath, args.testlist, False)
 TrainImgLoader = DataLoader(
-    train_dataset, args.batch_size, shuffle=True, num_workers=4, drop_last=True)
+    train_dataset, args.batch_size, shuffle=True, num_workers=args.loader_workers, drop_last=True)
 TestImgLoader = DataLoader(
-    test_dataset, args.test_batch_size, shuffle=False, num_workers=4, drop_last=False)
+    test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
 
 # model, optimizer
 model = __models__[args.model](args.maxdisp)
@@ -96,17 +101,17 @@ if args.resume:
     all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
     # use the latest checkpoint file
     loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
-    print("Loading the latest model in logdir: {}".format(loadckpt))
+    log.info("Loading the latest model in logdir: {}".format(loadckpt))
     state_dict = torch.load(loadckpt)
     model.load_state_dict(state_dict['model'])
     optimizer.load_state_dict(state_dict['optimizer'])
     start_epoch = state_dict['epoch'] + 1
 elif args.loadckpt:
     # load the checkpoint file specified by args.loadckpt
-    print("Loading model {}".format(args.loadckpt))
+    log.info("Loading model {}".format(args.loadckpt))
     state_dict = torch.load(args.loadckpt)
     model.load_state_dict(state_dict['model'])
-print("Start at epoch {}".format(start_epoch))
+log.info("Start at epoch {}".format(start_epoch))
 
 summary(model, [(1, 3, 256, 512), (1, 3, 256, 512)])
 
@@ -127,14 +132,14 @@ def train():
                 save_scalars(logger, 'train', scalar_outputs, global_step)
                 save_voxel(logger, 'train', voxel_outputs, global_step,
                            args.logdir, False)
-                print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
+                log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
                                                                                                              TrainImgLoader), loss,
                                                                                                          scalar_outputs["IoU"],
                                                                                                          time.time() - start_time))
             else:
-                print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
+                log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                            batch_idx,
                                                                                            len(
                                                                                                TrainImgLoader), loss,
@@ -161,14 +166,14 @@ def train():
                 save_scalars(logger, 'test', scalar_outputs, global_step)
                 save_voxel(logger, 'test', voxel_outputs, global_step,
                            args.logdir, False)
-                print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
+                log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                         batch_idx,
                                                                                                         len(
                                                                                                             TestImgLoader), loss,
                                                                                                         scalar_outputs["IoU"],
                                                                                                         time.time() - start_time))
             else:
-                print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
+                log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
                                                                                          batch_idx,
                                                                                          len(
                                                                                              TestImgLoader), loss,
@@ -180,12 +185,12 @@ def train():
 
         save_scalars(logger, 'fulltest', avg_test_scalars,
                      len(TrainImgLoader) * (epoch_idx + 1))
-        print("avg_test_scalars", avg_test_scalars)
+        log.info("avg_test_scalars", avg_test_scalars)
 
         # saving new best checkpoint
         if avg_test_scalars['loss'] < best_checkpoint_loss:
             best_checkpoint_loss = avg_test_scalars['loss']
-            print("Overwriting best checkpoint")
+            log.debug("Overwriting best checkpoint")
             checkpoint_data = {'epoch': epoch_idx, 'model': model.state_dict(
             ), 'optimizer': optimizer.state_dict()}
             torch.save(checkpoint_data, "{}/best.ckpt".format(args.logdir))
