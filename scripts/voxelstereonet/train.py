@@ -145,9 +145,9 @@ def train(config=None):
 
     logdir_prefix = ""
     for k, v in config.items():
-        logdir_prefix += k
+        logdir_prefix += str(k)
         logdir_prefix += '_'
-        logdir_prefix += v
+        logdir_prefix += str(v)
         logdir_prefix += '_'
     
     args.argdir = os.path.join(args.logdir, logdir_prefix)
