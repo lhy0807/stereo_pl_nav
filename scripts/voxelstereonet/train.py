@@ -65,7 +65,6 @@ parser.add_argument('--optimizer', type=str, default="adam",
 args = parser.parse_args()
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)
-os.makedirs(args.logdir, exist_ok=True)
 
 def train(config=None):
     # train one sample
@@ -129,7 +128,7 @@ def train(config=None):
         scalar_outputs["IoU"] = np.mean(IoU_list)
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
-        
+
     # log inside wandb
     wandb.init(project="voxelnet", entity="lhy0807")
     config = wandb.config
@@ -143,6 +142,18 @@ def train(config=None):
         modelName = '2D-MobileVoxelNet'
 
     print("==========================\n", modelName, "\n==========================")
+
+    logdir_prefix = ""
+    for k, v in config.items():
+        logdir_prefix += k
+        logdir_prefix += '_'
+        logdir_prefix += v
+        logdir_prefix += '_'
+    
+    args.argdir = os.path.join(args.logdir, logdir_prefix)
+
+    log.info(f"Saving log at directory {args.argdir}")
+    os.makedirs(args.logdir, exist_ok=True)
 
     # create summary logger
     logger = SummaryWriter(args.logdir)
@@ -279,5 +290,5 @@ def train(config=None):
 
 
 if __name__ == '__main__':
-    wandb.agent("lhy0807/voxelnet/wpsz6yeo", train)
+    wandb.agent("lhy0807/voxelnet/q97s9a61", train)
     # train()
