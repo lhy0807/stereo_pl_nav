@@ -283,4 +283,4 @@ def test_sample(sample, compute_metrics=True):
 
 if __name__ == '__main__':
     # train()
-    wandb.agent("lhy0807/voxelnet/3kr2lgld", train)
+    wandb.agent("lhy0807/voxelnet/wpsz6yeo", train)
