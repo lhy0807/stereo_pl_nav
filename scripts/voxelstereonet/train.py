@@ -68,6 +68,68 @@ torch.cuda.manual_seed(args.seed)
 os.makedirs(args.logdir, exist_ok=True)
 
 def train(config=None):
+    # train one sample
+    def train_sample(sample, compute_metrics=False):
+        model.train()
+
+        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL = imgL.cuda()
+        imgR = imgR.cuda()
+        voxel_gt = voxel_gt.cuda()
+
+        optimizer.zero_grad()
+
+        voxel_ests = model(imgL, imgR)
+        loss = model_loss(voxel_ests, voxel_gt)
+
+        voxel_ests = voxel_ests[-1]
+        scalar_outputs = {"loss": loss}
+        voxel_outputs = []
+        if compute_metrics:
+            with torch.no_grad():
+                voxel_outputs = [voxel_ests[0], voxel_gt[0]]
+                IoU_list = []
+                for idx, voxel_est in enumerate(voxel_ests):
+                    intersect = voxel_est*voxel_gt  # Logical AND
+                    union = voxel_est+voxel_gt  # Logical OR
+
+                    IoU = intersect.sum()/float(union.sum())
+                    IoU_list.append(IoU.cpu().numpy())
+                scalar_outputs["IoU"] = np.mean(IoU_list)
+
+        loss.backward()
+        optimizer.step()
+
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+
+
+    # test one sample
+    @make_nograd_func
+    def test_sample(sample, compute_metrics=True):
+        model.eval()
+
+        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL = imgL.cuda()
+        imgR = imgR.cuda()
+        voxel_gt = voxel_gt.cuda()
+
+        voxel_ests = model(imgL, imgR)
+        loss = model_loss(voxel_ests, voxel_gt)
+
+        voxel_ests = voxel_ests[-1]
+        scalar_outputs = {"loss": loss}
+        voxel_outputs = [voxel_ests[0], voxel_gt[0]]
+        IoU_list = []
+        for idx, voxel_est in enumerate(voxel_ests):
+            intersect = voxel_est*voxel_gt  # Logical AND
+            union = voxel_est+voxel_gt  # Logical OR
+
+            IoU = intersect.sum()/float(union.sum())
+            IoU_list.append(IoU.cpu().numpy())
+        scalar_outputs["IoU"] = np.mean(IoU_list)
+
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+        
     # log inside wandb
     wandb.init(project="voxelnet", entity="lhy0807")
     config = wandb.config
@@ -214,69 +276,6 @@ def train(config=None):
             torch.save(checkpoint_data, "{}/best.ckpt".format(args.logdir))
 
         gc.collect()
-
-
-    # train one sample
-    def train_sample(sample, compute_metrics=False):
-        model.train()
-
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
-
-        optimizer.zero_grad()
-
-        voxel_ests = model(imgL, imgR)
-        loss = model_loss(voxel_ests, voxel_gt)
-
-        voxel_ests = voxel_ests[-1]
-        scalar_outputs = {"loss": loss}
-        voxel_outputs = []
-        if compute_metrics:
-            with torch.no_grad():
-                voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-                IoU_list = []
-                for idx, voxel_est in enumerate(voxel_ests):
-                    intersect = voxel_est*voxel_gt  # Logical AND
-                    union = voxel_est+voxel_gt  # Logical OR
-
-                    IoU = intersect.sum()/float(union.sum())
-                    IoU_list.append(IoU.cpu().numpy())
-                scalar_outputs["IoU"] = np.mean(IoU_list)
-
-        loss.backward()
-        optimizer.step()
-
-        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
-
-
-    # test one sample
-    @make_nograd_func
-    def test_sample(sample, compute_metrics=True):
-        model.eval()
-
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
-
-        voxel_ests = model(imgL, imgR)
-        loss = model_loss(voxel_ests, voxel_gt)
-
-        voxel_ests = voxel_ests[-1]
-        scalar_outputs = {"loss": loss}
-        voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-        IoU_list = []
-        for idx, voxel_est in enumerate(voxel_ests):
-            intersect = voxel_est*voxel_gt  # Logical AND
-            union = voxel_est+voxel_gt  # Logical OR
-
-            IoU = intersect.sum()/float(union.sum())
-            IoU_list.append(IoU.cpu().numpy())
-        scalar_outputs["IoU"] = np.mean(IoU_list)
-
-        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
 
 if __name__ == '__main__':
