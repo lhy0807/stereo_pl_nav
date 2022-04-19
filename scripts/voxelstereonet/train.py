@@ -16,6 +16,7 @@ from utils import *
 from torchinfo import summary
 import logging
 import coloredlogs
+import wandb
 
 cudnn.benchmark = True
 log = logging.getLogger(__name__)
@@ -55,6 +56,9 @@ parser.add_argument('--save_freq', type=int, default=1,
                     help='the frequency of saving checkpoint')
 parser.add_argument('--loader_workers', type=int, default=4,
                     help='Number of dataloader workers')
+parser.add_argument('--optimizer', type=str, default="adam",
+                    help='Choice of optimizer (adam or sgd)',
+                    choices=["adam","sgd"])
 
 
 # parse arguments, set seeds
@@ -62,6 +66,12 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)
 os.makedirs(args.logdir, exist_ok=True)
+
+# log inside wandb
+wandb.init(project="voxelnet", entity="lhy0807", config=args)
+config = wandb.config
+
+log.info(f"lr: {config['lr']}, batch_size: {config['batch_size']}, optimizer: {config['optimizer']}")
 
 if args.model == 'MSNet2D':
     modelName = '2D-MobileStereoNet'
@@ -80,7 +90,7 @@ StereoDataset = __datasets__[args.dataset]
 train_dataset = StereoDataset(args.datapath, args.trainlist, True)
 test_dataset = StereoDataset(args.datapath, args.testlist, False)
 TrainImgLoader = DataLoader(
-    train_dataset, args.batch_size, shuffle=True, num_workers=args.loader_workers, drop_last=True)
+    train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True)
 TestImgLoader = DataLoader(
     test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
 
@@ -88,7 +98,13 @@ TestImgLoader = DataLoader(
 model = __models__[args.model](args.maxdisp)
 model = nn.DataParallel(model)
 model.cuda()
-optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999))
+
+if config["optimizer"] == "adam":
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
+elif config["optimizer"] == "sgd":
+    optimizer = optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9)
+else:
+    raise Exception("optimizer choice error!")
 
 model.module.load_mobile_stereo()
 
@@ -138,12 +154,14 @@ def train():
                                                                                                              TrainImgLoader), loss,
                                                                                                          scalar_outputs["IoU"],
                                                                                                          time.time() - start_time))
+                wandb.log({"train_IoU": scalar_outputs["IoU"]})
             else:
                 log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                            batch_idx,
                                                                                            len(
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
+            wandb.log({"train_loss": loss})
             del scalar_outputs, voxel_outputs
 
         # saving checkpoints
@@ -160,7 +178,7 @@ def train():
             global_step = len(TestImgLoader) * epoch_idx + batch_idx
             start_time = time.time()
             do_summary = global_step % args.summary_freq == 0
-            loss, scalar_outputs, voxel_outputs = test_sample(
+            test_loss, scalar_outputs, voxel_outputs = test_sample(
                 sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'test', scalar_outputs, global_step)
@@ -169,15 +187,17 @@ def train():
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                         batch_idx,
                                                                                                         len(
-                                                                                                            TestImgLoader), loss,
+                                                                                                            TestImgLoader), test_loss,
                                                                                                         scalar_outputs["IoU"],
                                                                                                         time.time() - start_time))
+                wandb.log({"test_IoU": scalar_outputs["IoU"]})
             else:
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
                                                                                          batch_idx,
                                                                                          len(
-                                                                                             TestImgLoader), loss,
+                                                                                             TestImgLoader), test_loss,
                                                                                          time.time() - start_time))
+            wandb.log({"test_loss": test_loss})
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs, voxel_outputs
 
