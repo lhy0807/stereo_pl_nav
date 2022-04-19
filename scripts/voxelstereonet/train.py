@@ -68,7 +68,7 @@ torch.cuda.manual_seed(args.seed)
 os.makedirs(args.logdir, exist_ok=True)
 
 # log inside wandb
-wandb.init(project="voxelnet", entity="lhy0807", config=args)
+wandb.init(project="voxelnet", entity="lhy0807")
 config = wandb.config
 
 log.info(f"lr: {config['lr']}, batch_size: {config['batch_size']}, optimizer: {config['optimizer']}")
