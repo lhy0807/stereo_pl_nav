@@ -128,7 +128,7 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
         logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0), global_step=global_step)
     except Exception as e:
         log.error(f"Error occured when saving voxel: {e}")
-    fig = plt.figure()
+    plt.close(fig)
 
     
 

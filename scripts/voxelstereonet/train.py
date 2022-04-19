@@ -215,19 +215,11 @@ def train_sample(sample, compute_metrics=False):
             voxel_outputs = [voxel_ests[0], voxel_gt[0]]
             IoU_list = []
             for idx, voxel_est in enumerate(voxel_ests):
-                voxel_est_np = voxel_est.cpu().numpy()
-                voxel_est_np[voxel_est_np > 0.5] = 1
-                voxel_est_np[voxel_est_np <= 0.5] = 0
-                voxel_est_np = voxel_est_np.astype(bool)
+                intersect = voxel_est*voxel_gt  # Logical AND
+                union = voxel_est+voxel_gt  # Logical OR
 
-                voxel_gt_np = voxel_gt[idx].cpu().numpy()
-                voxel_gt_np = voxel_gt_np.astype(bool)
-
-                overlap = voxel_gt_np*voxel_est_np  # Logical AND
-                union = voxel_gt_np+voxel_est_np  # Logical OR
-
-                IoU = overlap.sum()/float(union.sum())
-                IoU_list.append(IoU)
+                IoU = intersect.sum()/float(union.sum())
+                IoU_list.append(IoU.cpu().numpy())
             scalar_outputs["IoU"] = np.mean(IoU_list)
 
     loss.backward()
@@ -252,8 +244,14 @@ def test_sample(sample, compute_metrics=True):
     voxel_ests = voxel_ests[-1]
     scalar_outputs = {"loss": loss}
     voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-    scalar_outputs["IoU"] = torch.mean(torch.Tensor([jaccard_index(voxel_est, voxel_gt[idx].type(torch.IntTensor).cuda(
-    ), num_classes=2, threshold=0.5) for idx, voxel_est in enumerate(voxel_ests)]))
+    IoU_list = []
+    for idx, voxel_est in enumerate(voxel_ests):
+        intersect = voxel_est*voxel_gt  # Logical AND
+        union = voxel_est+voxel_gt  # Logical OR
+
+        IoU = intersect.sum()/float(union.sum())
+        IoU_list.append(IoU.cpu().numpy())
+    scalar_outputs["IoU"] = np.mean(IoU_list)
 
     return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
