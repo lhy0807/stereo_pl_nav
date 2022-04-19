@@ -103,7 +103,7 @@ class Voxel2D(nn.Module):
 
         self.encoder_decoder3 = hourglass2D(self.hg_size)
 
-        self.output_layer = nn.Sequential(MobileV2_Residual(self.hg_size, self.hg_size, 1, self.dres_expanse_ratio),
+        self.output_layer = nn.Sequential(nn.Conv2d(self.hg_size, self.hg_size, 1, 1, 0),
                                             nn.Sigmoid())
 
         for m in self.modules():

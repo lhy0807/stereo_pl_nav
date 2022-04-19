@@ -102,6 +102,8 @@ class VoxelDataset(Dataset):
         for x in splits:
             if "15mm_focallength" in x[0]:
                 continue
+            if "funnyworld" in x[0]:
+                continue
             left_images.append(x[0])
             right_images.append(x[1])
             disp_images.append(x[2])

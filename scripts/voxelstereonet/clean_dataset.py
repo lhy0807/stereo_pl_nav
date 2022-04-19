@@ -111,10 +111,9 @@ def single_process(index):
         cloud_gt = calc_cloud(disparity, depth_gt)
         filtered_cloud_gt = filter_cloud(cloud_gt)
         vox_grid_gt,cloud_np_gt  = calc_voxel_grid(filtered_cloud_gt, voxel_size=voxel_size)
-        vox_grid_gt = torch.from_numpy(vox_grid_gt)
 
-        if len(cloud_np_gt) <= 4:
-            print("too short")
+        if np.count_nonzero(vox_grid_gt) <= 4:
+            print(f"{left_filenames[index]} too short")
     except Exception as e:
         print("error here")
         pass
