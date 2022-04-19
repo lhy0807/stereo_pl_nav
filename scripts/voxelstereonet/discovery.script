@@ -5,8 +5,8 @@
 #SBATCH --gres=gpu:p100:1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=16GB
-#SBATCH --output=myjob.%j.out
-#SBATCH --error=myjob.%j.err
+#SBATCH --output=HPC_log/myjob.%j.out
+#SBATCH --error=HPC_log/myjob.%j.err
 
 module load gcc/10.1.0
 . "/shared/centos7/anaconda3/2022.01/etc/profile.d/conda.sh"
