@@ -67,72 +67,70 @@ torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)
 os.makedirs(args.logdir, exist_ok=True)
 
-# log inside wandb
-wandb.init(project="voxelnet", entity="lhy0807")
-config = wandb.config
+def train(config=None):
+    # log inside wandb
+    wandb.init(project="voxelnet", entity="lhy0807")
+    config = wandb.config
+    log.info(f"wandb config: {config}")
 
-log.info(f"lr: {config['lr']}, batch_size: {config['batch_size']}, optimizer: {config['optimizer']}")
+    if args.model == 'MSNet2D':
+        modelName = '2D-MobileStereoNet'
+    elif args.model == 'MSNet3D':
+        modelName = '3D-MobileStereoNet'
+    elif args.model == "Voxel2D":
+        modelName = '2D-MobileVoxelNet'
 
-if args.model == 'MSNet2D':
-    modelName = '2D-MobileStereoNet'
-elif args.model == 'MSNet3D':
-    modelName = '3D-MobileStereoNet'
-elif args.model == "Voxel2D":
-    modelName = '2D-MobileVoxelNet'
+    print("==========================\n", modelName, "\n==========================")
 
-print("==========================\n", modelName, "\n==========================")
+    # create summary logger
+    logger = SummaryWriter(args.logdir)
 
-# create summary logger
-logger = SummaryWriter(args.logdir)
+    # dataset, dataloader
+    StereoDataset = __datasets__[args.dataset]
+    train_dataset = StereoDataset(args.datapath, args.trainlist, True)
+    test_dataset = StereoDataset(args.datapath, args.testlist, False)
+    TrainImgLoader = DataLoader(
+        train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True)
+    TestImgLoader = DataLoader(
+        test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
 
-# dataset, dataloader
-StereoDataset = __datasets__[args.dataset]
-train_dataset = StereoDataset(args.datapath, args.trainlist, True)
-test_dataset = StereoDataset(args.datapath, args.testlist, False)
-TrainImgLoader = DataLoader(
-    train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True)
-TestImgLoader = DataLoader(
-    test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
+    # model, optimizer
+    model = __models__[args.model](args.maxdisp)
+    model = nn.DataParallel(model)
+    model.cuda()
 
-# model, optimizer
-model = __models__[args.model](args.maxdisp)
-model = nn.DataParallel(model)
-model.cuda()
+    if config["optimizer"] == "adam":
+        optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
+    elif config["optimizer"] == "sgd":
+        optimizer = optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9)
+    else:
+        raise Exception("optimizer choice error!")
 
-if config["optimizer"] == "adam":
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
-elif config["optimizer"] == "sgd":
-    optimizer = optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9)
-else:
-    raise Exception("optimizer choice error!")
+    model.module.load_mobile_stereo()
 
-model.module.load_mobile_stereo()
+    # load parameters
+    start_epoch = 0
+    if args.resume:
+        # find all checkpoints file and sort according to epoch id
+        all_saved_ckpts = [fn for fn in os.listdir(
+            args.logdir) if fn.endswith(".ckpt")]
+        all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
+        # use the latest checkpoint file
+        loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
+        log.info("Loading the latest model in logdir: {}".format(loadckpt))
+        state_dict = torch.load(loadckpt)
+        model.load_state_dict(state_dict['model'])
+        optimizer.load_state_dict(state_dict['optimizer'])
+        start_epoch = state_dict['epoch'] + 1
+    elif args.loadckpt:
+        # load the checkpoint file specified by args.loadckpt
+        log.info("Loading model {}".format(args.loadckpt))
+        state_dict = torch.load(args.loadckpt)
+        model.load_state_dict(state_dict['model'])
+    log.info("Start at epoch {}".format(start_epoch))
 
-# load parameters
-start_epoch = 0
-if args.resume:
-    # find all checkpoints file and sort according to epoch id
-    all_saved_ckpts = [fn for fn in os.listdir(
-        args.logdir) if fn.endswith(".ckpt")]
-    all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
-    # use the latest checkpoint file
-    loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
-    log.info("Loading the latest model in logdir: {}".format(loadckpt))
-    state_dict = torch.load(loadckpt)
-    model.load_state_dict(state_dict['model'])
-    optimizer.load_state_dict(state_dict['optimizer'])
-    start_epoch = state_dict['epoch'] + 1
-elif args.loadckpt:
-    # load the checkpoint file specified by args.loadckpt
-    log.info("Loading model {}".format(args.loadckpt))
-    state_dict = torch.load(args.loadckpt)
-    model.load_state_dict(state_dict['model'])
-log.info("Start at epoch {}".format(start_epoch))
+    summary(model, [(1, 3, 256, 512), (1, 3, 256, 512)])
 
-summary(model, [(1, 3, 256, 512), (1, 3, 256, 512)])
-
-
-def train():
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
         # adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
@@ -218,69 +216,69 @@ def train():
         gc.collect()
 
 
-# train one sample
-def train_sample(sample, compute_metrics=False):
-    model.train()
+    # train one sample
+    def train_sample(sample, compute_metrics=False):
+        model.train()
 
-    imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-    imgL = imgL.cuda()
-    imgR = imgR.cuda()
-    voxel_gt = voxel_gt.cuda()
+        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL = imgL.cuda()
+        imgR = imgR.cuda()
+        voxel_gt = voxel_gt.cuda()
 
-    optimizer.zero_grad()
+        optimizer.zero_grad()
 
-    voxel_ests = model(imgL, imgR)
-    loss = model_loss(voxel_ests, voxel_gt)
+        voxel_ests = model(imgL, imgR)
+        loss = model_loss(voxel_ests, voxel_gt)
 
-    voxel_ests = voxel_ests[-1]
-    scalar_outputs = {"loss": loss}
-    voxel_outputs = []
-    if compute_metrics:
-        with torch.no_grad():
-            voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-            IoU_list = []
-            for idx, voxel_est in enumerate(voxel_ests):
-                intersect = voxel_est*voxel_gt  # Logical AND
-                union = voxel_est+voxel_gt  # Logical OR
+        voxel_ests = voxel_ests[-1]
+        scalar_outputs = {"loss": loss}
+        voxel_outputs = []
+        if compute_metrics:
+            with torch.no_grad():
+                voxel_outputs = [voxel_ests[0], voxel_gt[0]]
+                IoU_list = []
+                for idx, voxel_est in enumerate(voxel_ests):
+                    intersect = voxel_est*voxel_gt  # Logical AND
+                    union = voxel_est+voxel_gt  # Logical OR
 
-                IoU = intersect.sum()/float(union.sum())
-                IoU_list.append(IoU.cpu().numpy())
-            scalar_outputs["IoU"] = np.mean(IoU_list)
+                    IoU = intersect.sum()/float(union.sum())
+                    IoU_list.append(IoU.cpu().numpy())
+                scalar_outputs["IoU"] = np.mean(IoU_list)
 
-    loss.backward()
-    optimizer.step()
+        loss.backward()
+        optimizer.step()
 
-    return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
 
-# test one sample
-@make_nograd_func
-def test_sample(sample, compute_metrics=True):
-    model.eval()
+    # test one sample
+    @make_nograd_func
+    def test_sample(sample, compute_metrics=True):
+        model.eval()
 
-    imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-    imgL = imgL.cuda()
-    imgR = imgR.cuda()
-    voxel_gt = voxel_gt.cuda()
+        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL = imgL.cuda()
+        imgR = imgR.cuda()
+        voxel_gt = voxel_gt.cuda()
 
-    voxel_ests = model(imgL, imgR)
-    loss = model_loss(voxel_ests, voxel_gt)
+        voxel_ests = model(imgL, imgR)
+        loss = model_loss(voxel_ests, voxel_gt)
 
-    voxel_ests = voxel_ests[-1]
-    scalar_outputs = {"loss": loss}
-    voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-    IoU_list = []
-    for idx, voxel_est in enumerate(voxel_ests):
-        intersect = voxel_est*voxel_gt  # Logical AND
-        union = voxel_est+voxel_gt  # Logical OR
+        voxel_ests = voxel_ests[-1]
+        scalar_outputs = {"loss": loss}
+        voxel_outputs = [voxel_ests[0], voxel_gt[0]]
+        IoU_list = []
+        for idx, voxel_est in enumerate(voxel_ests):
+            intersect = voxel_est*voxel_gt  # Logical AND
+            union = voxel_est+voxel_gt  # Logical OR
 
-        IoU = intersect.sum()/float(union.sum())
-        IoU_list.append(IoU.cpu().numpy())
-    scalar_outputs["IoU"] = np.mean(IoU_list)
+            IoU = intersect.sum()/float(union.sum())
+            IoU_list.append(IoU.cpu().numpy())
+        scalar_outputs["IoU"] = np.mean(IoU_list)
 
-    return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
 
 if __name__ == '__main__':
-    # train()
     wandb.agent("lhy0807/voxelnet/wpsz6yeo", train)
+    # train()
