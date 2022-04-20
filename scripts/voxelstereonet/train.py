@@ -150,10 +150,10 @@ def train(config=None):
         logdir_prefix += str(v)
         logdir_prefix += '_'
     
-    args.argdir = os.path.join(args.logdir, logdir_prefix) + "/"
+    args.logdir = os.path.join(args.logdir, logdir_prefix) + "/"
 
-    log.info(f"Saving log at directory {args.argdir}")
-    os.makedirs(args.logdir, exist_ok=True)
+    log.info(f"Saving log at directory {args.logdir}")
+    os.makedirs(args.logdir, mode=0o770, exist_ok=True)
 
     # create summary logger
     logger = SummaryWriter(args.logdir)
