@@ -130,7 +130,7 @@ def train(config=None):
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
     # log inside wandb
-    wandb.init(project="voxelnet", entity="lhy0807")
+    wandb.init(project="voxelnet", entity="lhy0807", resume=True)
     config = wandb.config
     log.info(f"wandb config: {config}")
 
@@ -183,10 +183,10 @@ def train(config=None):
 
     # load parameters
     start_epoch = 0
-    if args.resume:
+    if args.resume or wandb.run.resumed:
         # find all checkpoints file and sort according to epoch id
         all_saved_ckpts = [fn for fn in os.listdir(
-            args.logdir) if fn.endswith(".ckpt")]
+            args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
         all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
         # use the latest checkpoint file
         loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
