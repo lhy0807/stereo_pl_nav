@@ -131,7 +131,7 @@ def train(config=None):
 
     # log inside wandb
     wandb.init(project="voxelnet", entity="lhy0807", resume=True)
-    config = wandb.config
+    # config = wandb.config
     log.info(f"wandb config: {config}")
 
     if args.model == 'MSNet2D':
@@ -206,7 +206,7 @@ def train(config=None):
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
-        # adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
+        adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
 
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
@@ -290,6 +290,6 @@ def train(config=None):
 
 
 if __name__ == '__main__':
-    wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    # config = {"lr":1e-4, "batch_size":6, "optimizer":"adam"}
-    # train(config=config)
+    # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
+    config = {"lr":1e-3, "batch_size":6, "optimizer":"adam"}
+    train(config=config)
