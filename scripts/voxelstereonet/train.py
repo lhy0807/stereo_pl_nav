@@ -206,8 +206,8 @@ def train(config=None):
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
-        adjust_learning_rate(optimizer, epoch_idx, args.lr, args.lrepochs)
-
+        lr_curr = adjust_learning_rate(optimizer, epoch_idx, config["lr"], args.lrepochs)
+        wandb.log({"lr_curr": lr_curr})
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx

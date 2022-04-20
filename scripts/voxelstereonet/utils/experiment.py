@@ -152,6 +152,7 @@ def adjust_learning_rate(optimizer, epoch, base_lr, lrepochs):
     print("Setting learning rate to {}".format(lr))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+    return lr
 
 
 class AverageMeter(object):
