@@ -5,15 +5,14 @@ metric:
 parameters:
   batch_size:
     values:
-    - 2
     - 4
-    - 6
     - 8
+    - 12
   lr:
     values:
-    - 0.001
-    - 0.0005
-    - 0.0001
+    - 1e-03
+    - 5e-04
+    - 1e-04
     - 5e-05
     - 1e-05
     - 5e-06

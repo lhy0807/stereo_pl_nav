@@ -146,9 +146,9 @@ class VoxelDataset(Dataset):
         return cloud
 
     def filter_cloud(self, cloud):
-        min_mask = cloud >= [-1.2,-1.0,0.0]
+        min_mask = cloud >= [-1.2,-3.0,0.0]
         min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
-        max_mask = cloud <= [1.2,0.2,2.4]
+        max_mask = cloud <= [1.2,0.2,6.4]
         max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
         filter_mask = min_mask & max_mask
         filtered_cloud = cloud[filter_mask]
@@ -156,8 +156,8 @@ class VoxelDataset(Dataset):
 
     def calc_voxel_grid(self, filtered_cloud, voxel_size):
         xyz_q = np.floor(np.array(filtered_cloud/voxel_size)).astype(int) # quantized point values, here you will loose precision
-        vox_grid = np.zeros((int(2.4/voxel_size)+1, int(1.2/voxel_size)+1, int(2.4/voxel_size)+1)) #Empty voxel grid
-        offsets = np.array([24, 20, 0])
+        vox_grid = np.zeros((int(2.4/voxel_size)+1, int(3.2/voxel_size), int(6.4/voxel_size))) #Empty voxel grid
+        offsets = np.array([24, 60, 0])
         xyz_offset_q = xyz_q+offsets
         vox_grid[xyz_offset_q[:,0],xyz_offset_q[:,1],xyz_offset_q[:,2]] = 1 # Setting all voxels containitn a points equal to 1
 
@@ -200,7 +200,7 @@ class VoxelDataset(Dataset):
             # calcualte depth for ground truth disparity map
             mask = disparity > 0
             depth_gt = self.f_u * self.baseline / (disparity + 1. - mask)
-            vox_grid_gt = torch.zeros((int(2.4/self.voxel_size)+1, int(1.2/self.voxel_size)+1, int(2.4/self.voxel_size)+1))
+            vox_grid_gt = torch.zeros((int(2.4/self.voxel_size)+1, int(3.2/self.voxel_size), int(6.4/self.voxel_size)))
             try:
                 cloud_gt = self.calc_cloud(disparity, depth_gt)
                 filtered_cloud_gt = self.filter_cloud(cloud_gt)
@@ -229,7 +229,7 @@ class VoxelDataset(Dataset):
             # calcualte depth for ground truth disparity map
             mask = disparity > 0
             depth_gt = self.f_u * self.baseline / (disparity + 1. - mask)
-            vox_grid_gt = torch.zeros((int(2.4/self.voxel_size)+1, int(1.2/self.voxel_size)+1, int(2.4/self.voxel_size)+1))
+            vox_grid_gt = torch.zeros((int(2.4/self.voxel_size)+1, int(3.2/self.voxel_size), int(6.4/self.voxel_size)))
             try:
                 cloud_gt = self.calc_cloud(disparity, depth_gt)
                 filtered_cloud_gt = self.filter_cloud(cloud_gt)

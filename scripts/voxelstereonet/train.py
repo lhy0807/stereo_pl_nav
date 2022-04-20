@@ -150,7 +150,7 @@ def train(config=None):
         logdir_prefix += str(v)
         logdir_prefix += '_'
     
-    args.argdir = os.path.join(args.logdir, logdir_prefix)
+    args.argdir = os.path.join(args.logdir, logdir_prefix) + "/"
 
     log.info(f"Saving log at directory {args.argdir}")
     os.makedirs(args.logdir, exist_ok=True)
@@ -290,5 +290,6 @@ def train(config=None):
 
 
 if __name__ == '__main__':
-    wandb.agent("lhy0807/voxelnet/q97s9a61", train)
-    # train()
+    wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
+    # config = {"lr":1e-4, "batch_size":6, "optimizer":"adam"}
+    # train(config=config)

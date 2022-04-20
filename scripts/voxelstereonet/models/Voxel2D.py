@@ -188,10 +188,10 @@ class Voxel2D(nn.Module):
         volume = volume.contiguous()
         volume = torch.squeeze(volume, 1)
 
-        vox = self.voxel_grid(volume)
-        vox = torch.transpose(vox, 1, -1)
+        # vox = self.voxel_grid(volume)
+        # vox = torch.transpose(vox, 1, -1)
 
-        cost0 = self.dres0(vox)
+        cost0 = self.dres0(volume)
         cost0 = self.dres1(cost0) + cost0
 
         out1 = self.encoder_decoder1(cost0)  # [2, hg_size, 64, 128]
