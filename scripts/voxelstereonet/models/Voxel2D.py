@@ -148,17 +148,17 @@ class Voxel2D(nn.Module):
 
         del state_dict
 
-        for param in self.feature_extraction.parameters():
-            param.requires_grad = False
+        # for param in self.feature_extraction.parameters():
+        #     param.requires_grad = False
 
-        for param in self.preconv11.parameters():
-            param.requires_grad = False
+        # for param in self.preconv11.parameters():
+        #     param.requires_grad = False
 
-        for param in self.conv3d.parameters():
-            param.requires_grad = False
+        # for param in self.conv3d.parameters():
+        #     param.requires_grad = False
 
-        for param in self.volume11.parameters():
-            param.requires_grad = False
+        # for param in self.volume11.parameters():
+        #     param.requires_grad = False
 
     def forward(self, L, R):
         features_L = self.feature_extraction(L)
