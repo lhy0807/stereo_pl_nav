@@ -87,7 +87,7 @@ if __name__ == '__main__':
     
     model.eval()
     
-    total_count = len(TestImgLoader)
+    total_count = len(TestImgLoader)*4
     invalid_count = 0
 
     t = tqdm(TestImgLoader)
@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
                 vox_grid,cloud_np  = calc_voxel_grid(filtered_cloud, voxel_size=VOXEL_SIZE)
 
-                if cloud_np.shape[-1] < 32:
+                if cloud_np.shape[0] < 32:
                     invalid_count += 1
 
                 intersect = vox_grid*vox_grid_gt  # Logical AND
