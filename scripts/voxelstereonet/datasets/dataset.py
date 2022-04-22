@@ -146,12 +146,8 @@ class VoxelDataset(Dataset):
         return cloud
 
     def filter_cloud(self, cloud):
-        if self.training:
-            min_mask = cloud >= [-1.2,-3.0,0.0]
-            max_mask = cloud <= [1.2,0.2,6.4]
-        else:
-            min_mask = cloud >= [-1.2,-6.2,0.0]
-            max_mask = cloud <= [1.2,0.2,12.0]
+        min_mask = cloud >= [-1.6,-3.0,0.0]
+        max_mask = cloud <= [1.6,0.2,3.2]
         min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
         max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
         filter_mask = min_mask & max_mask
@@ -160,12 +156,8 @@ class VoxelDataset(Dataset):
 
     def calc_voxel_grid(self, filtered_cloud, voxel_size):
         xyz_q = np.floor(np.array(filtered_cloud/voxel_size)).astype(int) # quantized point values, here you will loose precision
-        if self.training:
-            vox_grid = np.zeros((int(2.4/voxel_size)+1, int(3.2/voxel_size), int(6.4/voxel_size))) #Empty voxel grid
-            offsets = np.array([24, 60, 0])
-        else:
-            vox_grid = np.zeros((int(2.4/voxel_size)+1, int(6.4/voxel_size), int(12.0/voxel_size))) #Empty voxel grid
-            offsets = np.array([24, 124, 0])
+        vox_grid = np.zeros((int(3.2/voxel_size), int(3.2/voxel_size), int(3.2/voxel_size))) #Empty voxel grid
+        offsets = np.array([32, 60, 0])
         xyz_offset_q = xyz_q+offsets
         vox_grid[xyz_offset_q[:,0],xyz_offset_q[:,1],xyz_offset_q[:,2]] = 1 # Setting all voxels containitn a points equal to 1
 
@@ -190,15 +182,21 @@ class VoxelDataset(Dataset):
 
         if self.training:
             w, h = left_img.size
-            crop_w, crop_h = 512, 256
+            # crop_w, crop_h = 512, 256
 
-            x1 = random.randint(0, w - crop_w)
-            y1 = random.randint(0, h - crop_h)
+            # x1 = random.randint(0, w - crop_w)
+            # y1 = random.randint(0, h - crop_h)
 
-            # random crop
-            left_img = left_img.crop((x1, y1, x1 + crop_w, y1 + crop_h))
-            right_img = right_img.crop((x1, y1, x1 + crop_w, y1 + crop_h))
-            disparity = disparity[y1:y1 + crop_h, x1:x1 + crop_w]
+            # # random crop
+            # left_img = left_img.crop((x1, y1, x1 + crop_w, y1 + crop_h))
+            # right_img = right_img.crop((x1, y1, x1 + crop_w, y1 + crop_h))
+            # disparity = disparity[y1:y1 + crop_h, x1:x1 + crop_w]
+
+            crop_w, crop_h = 960, 512
+
+            left_img = left_img.crop((w - crop_w, h - crop_h, w, h))
+            right_img = right_img.crop((w - crop_w, h - crop_h, w, h))
+            disparity = disparity[h - crop_h:h, w - crop_w: w]
 
             # to tensor, normalize
             processed = get_transform()

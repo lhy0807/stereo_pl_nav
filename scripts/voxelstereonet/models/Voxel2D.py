@@ -1,11 +1,11 @@
 # Copyright (c) 2021. All rights reserved.
 from __future__ import print_function
 import math
-from pyexpat import model
 import torch.nn as nn
 from torch import Tensor
 import torch.utils.data
 from collections import OrderedDict
+from torch import reshape
 import torch.nn.functional as F
 from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, disparity_regression
 
@@ -16,24 +16,32 @@ class hourglass2D(nn.Module):
 
         self.expanse_ratio = 2
 
-        self.conv1 = MobileV2_Residual(in_channels, in_channels * 2, stride=2, expanse_ratio=self.expanse_ratio)
+        self.conv1 = MobileV2_Residual(
+            in_channels, in_channels * 2, stride=2, expanse_ratio=self.expanse_ratio)
 
-        self.conv2 = MobileV2_Residual(in_channels * 2, in_channels * 2, stride=1, expanse_ratio=self.expanse_ratio)
+        self.conv2 = MobileV2_Residual(
+            in_channels * 2, in_channels * 2, stride=1, expanse_ratio=self.expanse_ratio)
 
-        self.conv3 = MobileV2_Residual(in_channels * 2, in_channels * 4, stride=2, expanse_ratio=self.expanse_ratio)
+        self.conv3 = MobileV2_Residual(
+            in_channels * 2, in_channels * 4, stride=2, expanse_ratio=self.expanse_ratio)
 
-        self.conv4 = MobileV2_Residual(in_channels * 4, in_channels * 4, stride=1, expanse_ratio=self.expanse_ratio)
+        self.conv4 = MobileV2_Residual(
+            in_channels * 4, in_channels * 4, stride=1, expanse_ratio=self.expanse_ratio)
 
         self.conv5 = nn.Sequential(
-            nn.ConvTranspose2d(in_channels * 4, in_channels * 2, 3, padding=1, output_padding=1, stride=2, bias=False),
+            nn.ConvTranspose2d(in_channels * 4, in_channels * 2, 3,
+                               padding=1, output_padding=1, stride=2, bias=False),
             nn.BatchNorm2d(in_channels * 2))
 
         self.conv6 = nn.Sequential(
-            nn.ConvTranspose2d(in_channels * 2, in_channels, 3, padding=1, output_padding=1, stride=2, bias=False),
+            nn.ConvTranspose2d(in_channels * 2, in_channels, 3,
+                               padding=1, output_padding=1, stride=2, bias=False),
             nn.BatchNorm2d(in_channels))
 
-        self.redir1 = MobileV2_Residual(in_channels, in_channels, stride=1, expanse_ratio=self.expanse_ratio)
-        self.redir2 = MobileV2_Residual(in_channels * 2, in_channels * 2, stride=1, expanse_ratio=self.expanse_ratio)
+        self.redir1 = MobileV2_Residual(
+            in_channels, in_channels, stride=1, expanse_ratio=self.expanse_ratio)
+        self.redir2 = MobileV2_Residual(
+            in_channels * 2, in_channels * 2, stride=1, expanse_ratio=self.expanse_ratio)
 
     def forward(self, x):
         conv1 = self.conv1(x)
@@ -48,6 +56,71 @@ class hourglass2D(nn.Module):
         return conv6
 
 
+class UNet(nn.Module):
+    def __init__(self) -> None:
+        super(UNet, self).__init__()
+        # 48x128x240 => 64x64x128
+        self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                   nn.ReLU(inplace=True))
+
+        # 64x64x128 => 128x16x32
+        self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0)),
+                                   nn.ReLU(inplace=True))
+
+        # 128x16x32 => 256x4x8
+        self.conv3 = nn.Sequential(nn.Conv2d(128, 256, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0)),
+                                   nn.ReLU(inplace=True))
+
+        self.linear1 = nn.Sequential(
+            nn.Linear(256*4*8, 1024), nn.ReLU(inplace=True))
+        self.linear2 = nn.Sequential(
+            nn.Linear(1024, 1024), nn.ReLU(inplace=True))
+        self.linear3 = nn.Sequential(
+            nn.Linear(1024, 256), nn.ReLU(inplace=True))
+
+        # 256x1x1x1 => 256x2x2x2
+        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(256, 128, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
+                                     nn.BatchNorm3d(128),
+                                     nn.ReLU(inplace=True))
+
+        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
+                                     nn.BatchNorm3d(64),
+                                     nn.ReLU(inplace=True))
+
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(64, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+                                     nn.BatchNorm3d(16),
+                                     nn.ReLU(inplace=True))
+        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+                                     nn.BatchNorm3d(1),
+                                     nn.ReLU(inplace=True))
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+
+        # encoding
+        conv1 = self.conv1(x)
+        conv2 = self.conv2(conv1)
+        conv3 = self.conv3(conv2)
+
+        conv3 = reshape(conv3, (B, -1,))
+
+        # latent
+        linear1 = self.linear1(conv3)
+        linear2 = self.linear2(linear1)
+        latent = self.linear3(linear2)
+
+        # decoding
+        latent = reshape(latent, (B, 256, 1, 1, 1))
+
+        deconv1 = self.deconv1(latent)
+        deconv2 = self.deconv2(deconv1)
+        deconv3 = self.deconv3(deconv2)
+        out = self.deconv4(deconv3)
+
+        out = torch.squeeze(out, 1)
+        return out
+
+
 class Voxel2D(nn.Module):
     def __init__(self, maxdisp):
 
@@ -59,7 +132,7 @@ class Voxel2D(nn.Module):
 
         self.volume_size = 48
 
-        self.hg_size = 48
+        self.hg_size = 64
 
         self.dres_expanse_ratio = 3
 
@@ -76,42 +149,30 @@ class Voxel2D(nn.Module):
         self.conv3d = nn.Sequential(nn.Conv3d(1, 16, kernel_size=(8, 3, 3), stride=[8, 1, 1], padding=[0, 1, 1]),
                                     nn.BatchNorm3d(16),
                                     nn.ReLU(),
-                                    nn.Conv3d(16, 32, kernel_size=(4, 3, 3), stride=[4, 1, 1], padding=[0, 1, 1]),
+                                    nn.Conv3d(16, 32, kernel_size=(4, 3, 3), stride=[
+                                              4, 1, 1], padding=[0, 1, 1]),
                                     nn.BatchNorm3d(32),
                                     nn.ReLU(),
-                                    nn.Conv3d(32, 16, kernel_size=(2, 3, 3), stride=[2, 1, 1], padding=[0, 1, 1]),
+                                    nn.Conv3d(32, 16, kernel_size=(2, 3, 3), stride=[
+                                              2, 1, 1], padding=[0, 1, 1]),
                                     nn.BatchNorm3d(16),
                                     nn.ReLU())
 
         self.volume11 = nn.Sequential(convbn(16, 1, 1, 1, 0, 1),
                                       nn.ReLU(inplace=True))
 
-        self.voxel_grid = nn.Upsample(size=(24,48), mode="bilinear")
-
-        self.dres0 = nn.Sequential(MobileV2_Residual(self.volume_size, self.hg_size, 1, self.dres_expanse_ratio),
-                                   nn.ReLU(inplace=True),
-                                   MobileV2_Residual(self.hg_size, self.hg_size, 1, self.dres_expanse_ratio),
-                                   nn.ReLU(inplace=True))
-
-        self.dres1 = nn.Sequential(MobileV2_Residual(self.hg_size, self.hg_size, 1, self.dres_expanse_ratio),
-                                   nn.ReLU(inplace=True),
-                                   MobileV2_Residual(self.hg_size, self.hg_size, 1, self.dres_expanse_ratio))
-
-        self.encoder_decoder1 = hourglass2D(self.hg_size)
-
-        self.encoder_decoder2 = hourglass2D(self.hg_size)
-
-        self.encoder_decoder3 = hourglass2D(self.hg_size)
-
         self.output_layer = nn.Sequential(nn.Conv2d(self.hg_size, self.hg_size, 1, 1, 0),
-                                            nn.Sigmoid())
+                                          nn.Sigmoid())
+
+        self.encoder_decoder = UNet()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.Conv3d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.kernel_size[2] * m.out_channels
+                n = m.kernel_size[0] * m.kernel_size[1] * \
+                    m.kernel_size[2] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
@@ -148,17 +209,17 @@ class Voxel2D(nn.Module):
 
         del state_dict
 
-        # for param in self.feature_extraction.parameters():
-        #     param.requires_grad = False
+        for param in self.feature_extraction.parameters():
+            param.requires_grad = False
 
-        # for param in self.preconv11.parameters():
-        #     param.requires_grad = False
+        for param in self.preconv11.parameters():
+            param.requires_grad = False
 
-        # for param in self.conv3d.parameters():
-        #     param.requires_grad = False
+        for param in self.conv3d.parameters():
+            param.requires_grad = False
 
-        # for param in self.volume11.parameters():
-        #     param.requires_grad = False
+        for param in self.volume11.parameters():
+            param.requires_grad = False
 
     def forward(self, L, R):
         features_L = self.feature_extraction(L)
@@ -188,18 +249,6 @@ class Voxel2D(nn.Module):
         volume = volume.contiguous()
         volume = torch.squeeze(volume, 1)
 
-        # vox = self.voxel_grid(volume)
-        # vox = torch.transpose(vox, 1, -1)
+        out = self.encoder_decoder(volume)
 
-        cost0 = self.dres0(volume)
-        cost0 = self.dres1(cost0) + cost0
-
-        out1 = self.encoder_decoder1(cost0)  # [2, hg_size, 64, 128]
-        out2 = self.encoder_decoder2(out1)
-        out3 = self.encoder_decoder3(out2)
-
-        if self.training:
-            return [self.output_layer(out1), self.output_layer(out2), self.output_layer(out3)]
-
-        else:
-            return [self.output_layer(out3)]
+        return [self.output_layer(out)]

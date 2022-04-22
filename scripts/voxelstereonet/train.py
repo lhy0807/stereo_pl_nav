@@ -202,12 +202,12 @@ def train(config=None):
         model.load_state_dict(state_dict['model'])
     log.info("Start at epoch {}".format(start_epoch))
 
-    summary(model, [(1, 3, 256, 512), (1, 3, 256, 512)])
+    summary(model, [(1, 3, 512, 960), (1, 3, 512, 960)])
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
-        lr_curr = adjust_learning_rate(optimizer, epoch_idx, config["lr"], args.lrepochs)
-        wandb.log({"lr_curr": lr_curr})
+        # lr_curr = adjust_learning_rate(optimizer, epoch_idx, config["lr"], args.lrepochs)
+        # wandb.log({"lr_curr": lr_curr})
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx
@@ -225,14 +225,13 @@ def train(config=None):
                                                                                                              TrainImgLoader), loss,
                                                                                                          scalar_outputs["IoU"],
                                                                                                          time.time() - start_time))
-                wandb.log({"train_IoU": scalar_outputs["IoU"]})
+                wandb.log({"train_IoU": scalar_outputs["IoU"], "train_loss": loss})
             else:
                 log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                            batch_idx,
                                                                                            len(
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
-            wandb.log({"train_loss": loss})
             del scalar_outputs, voxel_outputs
 
         # saving checkpoints
@@ -261,14 +260,13 @@ def train(config=None):
                                                                                                             TestImgLoader), test_loss,
                                                                                                         scalar_outputs["IoU"],
                                                                                                         time.time() - start_time))
-                wandb.log({"test_IoU": scalar_outputs["IoU"]})
+                wandb.log({"test_IoU": scalar_outputs["IoU"], "test_loss": test_loss})
             else:
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
                                                                                          batch_idx,
                                                                                          len(
                                                                                              TestImgLoader), test_loss,
                                                                                          time.time() - start_time))
-            wandb.log({"test_loss": test_loss})
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs, voxel_outputs
 
@@ -291,5 +289,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":6, "optimizer":"adam"}
+    config = {"lr":1e-3, "batch_size":8, "optimizer":"adam"}
     train(config=config)
