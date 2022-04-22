@@ -24,7 +24,8 @@ from torchmetrics.functional import jaccard_index
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
-DATAPATH = "../../datasets/SceneFlow"
+# DATAPATH = "../../datasets/SceneFlow"
+DATAPATH = "/work/riverlab/hongyu/dataset/SceneFlow"
 DATALIST = "./filenames/sceneflow_test.txt"
 
 VOXEL_SIZE = 0.05 
@@ -46,9 +47,9 @@ def calc_cloud(disp_est, depth):
     return cloud
 
 def filter_cloud(cloud):
-    min_mask = cloud >= [-1.2,-1.0,0.0]
+    min_mask = cloud >= [-1.6,-3.0,0.0]
+    max_mask = cloud <= [1.6,0.2,3.2]
     min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
-    max_mask = cloud <= [1.2,0.2,2.4]
     max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
     filter_mask = min_mask & max_mask
     filtered_cloud = cloud[filter_mask]
@@ -56,8 +57,8 @@ def filter_cloud(cloud):
 
 def calc_voxel_grid(filtered_cloud, voxel_size):
     xyz_q = np.floor(np.array(filtered_cloud/voxel_size)).astype(int) # quantized point values, here you will loose precision
-    vox_grid = np.zeros((int(2.4/voxel_size)+1, int(1.2/voxel_size)+1, int(2.4/voxel_size)+1)) #Empty voxel grid
-    offsets = np.array([24, 20, 0])
+    vox_grid = np.zeros((int(3.2/voxel_size), int(3.2/voxel_size), int(3.2/voxel_size))) #Empty voxel grid
+    offsets = np.array([32, 60, 0])
     xyz_offset_q = xyz_q+offsets
     vox_grid[xyz_offset_q[:,0],xyz_offset_q[:,1],xyz_offset_q[:,2]] = 1 # Setting all voxels containitn a points equal to 1
 
@@ -82,12 +83,15 @@ if __name__ == '__main__':
     iou_list = []
 
     test_dataset = VoxelDataset(DATAPATH, DATALIST, training=False)
-    TestImgLoader = DataLoader(test_dataset, 3, shuffle=True, num_workers=6, drop_last=False)
+    TestImgLoader = DataLoader(test_dataset, 4, shuffle=True, num_workers=4, drop_last=False)
     
     model.eval()
     
+    total_count = len(TestImgLoader)
+    invalid_count = 0
+
     t = tqdm(TestImgLoader)
-    for sample in t:
+    for batch_idx, sample in enumerate(t):
         left_img, right_img, disparity_batch, left_filename = sample['left'], sample['right'], sample['disparity'], sample['left_filename']
         voxel_grid = sample["voxel_grid"]
         voxel_grid = voxel_grid.cpu().numpy()
@@ -108,6 +112,7 @@ if __name__ == '__main__':
             for idx, disp_est in enumerate(disp_est_np):
                 vox_grid_gt  = voxel_grid[idx]
                 if vox_grid_gt.max() == 0.0:
+                    invalid_count += 1
                     continue
 
                 disp_est = np.array(disp_est, dtype=np.float32)
@@ -148,13 +153,19 @@ if __name__ == '__main__':
 
                 vox_grid,cloud_np  = calc_voxel_grid(filtered_cloud, voxel_size=VOXEL_SIZE)
 
-                loss = F.binary_cross_entropy(torch.from_numpy(vox_grid), torch.from_numpy(vox_grid_gt))
-                iou = jaccard_index(torch.from_numpy(vox_grid).type(torch.IntTensor), torch.from_numpy(vox_grid_gt).type(torch.IntTensor), num_classes=2)
-                
-                loss_list.append(loss)
-                iou_list.append(iou)
+                if cloud_np.shape[-1] < 32:
+                    invalid_count += 1
 
-                t.set_description(f"Loss is {Average(loss_list)}, IoU is {Average(iou_list)}")
+                intersect = vox_grid*vox_grid_gt  # Logical AND
+                union = vox_grid+vox_grid_gt  # Logical OR
+
+                loss = 1 - ((intersect.sum() + 1.0) / (union.sum() - intersect.sum() + 1.0))
+                IoU = intersect.sum()/float(union.sum())
+
+                loss_list.append(loss)
+                iou_list.append(IoU)
+
+                t.set_description(f"Loss is {Average(loss_list)}, IoU is {Average(iou_list)}, Invalid Sample {invalid_count} out of {total_count} @ {round(invalid_count/total_count*100, 2)}%")
                 t.refresh()
         except Exception as e:
             logger.warning(f"Something bad happended {traceback.format_exc()}")
