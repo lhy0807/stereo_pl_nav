@@ -91,8 +91,7 @@ class UNet(nn.Module):
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
         self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
-                                     nn.BatchNorm3d(1),
-                                     nn.ReLU(inplace=True))
+                                     nn.Sigmoid())
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -251,4 +250,5 @@ class Voxel2D(nn.Module):
 
         out = self.encoder_decoder(volume)
 
-        return [self.output_layer(out)]
+        # return [self.output_layer(out)]
+        return [out]
