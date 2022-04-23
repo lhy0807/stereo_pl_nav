@@ -278,12 +278,11 @@ def disparity_regression(x, maxdisp):
 ###############################################################################
 
 def calc_IoU(pred, gt):
-    intersect = pred*gt  # Logical AND
-    union = pred+gt  # Logical OR
+    intersect = pred*gt 
+    total = pred+gt  
+    union = total-intersect
 
-    IoU = intersect.sum()/float(union.sum())
-
-    return (intersect.sum() + 1.0) / (union.sum() - intersect.sum() + 1.0)
+    return (intersect.sum() + 1.0) / (union.sum() + 1.0)
 
 def IoU_loss(pred, gt):
     return 1-calc_IoU(pred, gt)

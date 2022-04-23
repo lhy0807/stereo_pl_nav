@@ -75,7 +75,7 @@ def save_scalars(logger: SummaryWriter, mode_tag, scalar_dict, global_step):
             logger.add_scalar(scalar_name, value, global_step)
 
 
-def save_images(logger, mode_tag, images_dict, global_step):
+def save_images(logger: SummaryWriter, mode_tag, images_dict, global_step):
     images_dict = tensor2numpy(images_dict)
     for tag, values in images_dict.items():
         if not isinstance(values, list) and not isinstance(values, tuple):
@@ -121,11 +121,7 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         data = np.transpose(data, (2,0,1))
         logger.add_image(mode_tag+"/plot", data, global_step)
-        cloud_merged = np.concatenate([cloud_gt, cloud_pred])
-        cloud_color = np.zeros(cloud_merged.shape)
-        cloud_color[:cloud_gt.shape[0], 1] = 1
-        cloud_color[cloud_gt.shape[0]:, 0] = 1
-        logger.add_mesh(mode_tag+"/mesh", np.expand_dims(cloud_merged, axis=0), np.expand_dims(cloud_color, axis=0), global_step=global_step)
+
     except Exception as e:
         log.error(f"Error occured when saving voxel: {e}")
     plt.close(fig)
