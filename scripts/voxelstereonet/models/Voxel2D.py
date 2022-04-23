@@ -72,7 +72,9 @@ class UNet(nn.Module):
                                    nn.ReLU(inplace=True))
 
         self.linear1 = nn.Sequential(
-            nn.Linear(256*4*8, 1024), nn.ReLU(inplace=True))
+            nn.Linear(256*3*7, 1024), nn.ReLU(inplace=True))
+        # self.linear1 = nn.Sequential(
+        #     nn.Linear(256*4*8, 1024), nn.ReLU(inplace=True))
         self.linear2 = nn.Sequential(
             nn.Linear(1024, 1024), nn.ReLU(inplace=True))
         self.linear3 = nn.Sequential(
