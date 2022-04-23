@@ -69,10 +69,10 @@ def calc_voxel_grid(filtered_cloud, voxel_size):
 if __name__ == '__main__':
 
     # load model
-    model = MSNet2D(192)
+    model = MSNet3D(192)
     model = nn.DataParallel(model)
     model.cuda()
-    ckpt_path = "../models/MSNet2D_SF_DS_KITTI2015.ckpt"
+    ckpt_path = "../models/MSNet3D_SF_DS_KITTI2015.ckpt"
     print("Loading model {}".format(ckpt_path))
     state_dict = torch.load(ckpt_path)
     model.load_state_dict(state_dict['model'])
@@ -83,18 +83,18 @@ if __name__ == '__main__':
     iou_list = []
 
     test_dataset = VoxelDataset(DATAPATH, DATALIST, training=False)
-    TestImgLoader = DataLoader(test_dataset, 4, shuffle=True, num_workers=4, drop_last=False)
+    TestImgLoader = DataLoader(test_dataset, 2, shuffle=True, num_workers=4, drop_last=False)
     
     model.eval()
     
-    total_count = len(TestImgLoader)*4
+    total_count = len(TestImgLoader)*2
     invalid_count = 0
 
     t = tqdm(TestImgLoader)
     for batch_idx, sample in enumerate(t):
         left_img, right_img, disparity_batch, left_filename = sample['left'], sample['right'], sample['disparity'], sample['left_filename']
-        voxel_grid = sample["voxel_grid"]
-        voxel_grid = voxel_grid.cpu().numpy()
+        voxel_grids = sample["voxel_grid"]
+        voxel_grids = voxel_grids.cpu().numpy()
         # disparity_batch = disparity_batch.cpu().numpy()
         # Camera intrinsics
         # 15mm images have different focals
@@ -110,7 +110,7 @@ if __name__ == '__main__':
             disp_est_np = tensor2numpy(disp_est_tn)
         try:
             for idx, disp_est in enumerate(disp_est_np):
-                vox_grid_gt  = voxel_grid[idx]
+                vox_grid_gt  = voxel_grids[idx]
                 if vox_grid_gt.max() == 0.0:
                     invalid_count += 1
                     continue
@@ -153,7 +153,8 @@ if __name__ == '__main__':
 
                 vox_grid,cloud_np  = calc_voxel_grid(filtered_cloud, voxel_size=VOXEL_SIZE)
 
-                if cloud_np.shape[0] < 32:
+                cloud_np_gt = np.asarray(np.where(vox_grid_gt == 1))
+                if cloud_np.shape[0] < 32 or cloud_np_gt.shape[1] < 32:
                     invalid_count += 1
 
                 intersect = vox_grid*vox_grid_gt  # Logical AND

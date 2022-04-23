@@ -4,6 +4,7 @@ import gc
 import time
 import argparse
 import torch.nn as nn
+from torchvision.transforms.functional import to_tensor
 import torch.utils.data
 import torch.nn.parallel
 import torch.optim as optim
@@ -11,12 +12,13 @@ import torch.backends.cudnn as cudnn
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
 from datasets import __datasets__
-from models import __models__, model_loss
+from models import __models__, model_loss, calc_IoU
 from utils import *
 from torchinfo import summary
 import logging
 import coloredlogs
 import wandb
+from PIL import Image
 
 cudnn.benchmark = True
 log = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ parser.add_argument('--lrepochs', type=str, required=True,
 parser.add_argument('--batch_size', type=int, default=4,
                     help='training batch size')
 parser.add_argument('--test_batch_size', type=int,
-                    default=4, help='testing batch size')
+                    default=8, help='testing batch size')
 parser.add_argument('--epochs', type=int, required=True,
                     help='number of epochs to train')
 parser.add_argument('--logdir', required=True,
@@ -83,23 +85,25 @@ def train(config=None):
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
+        img_outputs = {}
         voxel_outputs = []
         if compute_metrics:
             with torch.no_grad():
                 voxel_outputs = [voxel_ests[0], voxel_gt[0]]
                 IoU_list = []
                 for idx, voxel_est in enumerate(voxel_ests):
-                    intersect = voxel_est*voxel_gt  # Logical AND
-                    union = voxel_est+voxel_gt  # Logical OR
-
-                    IoU = intersect.sum()/float(union.sum())
+                    IoU = calc_IoU(voxel_est, voxel_gt)
                     IoU_list.append(IoU.cpu().numpy())
                 scalar_outputs["IoU"] = np.mean(IoU_list)
+
+                left_filename = os.path.join(args.datapath, sample["left_filename"][0])
+                left_img = Image.open(left_filename).convert('RGB')
+                img_outputs["left_img"] = to_tensor(left_img)
 
         loss.backward()
         optimizer.step()
 
-        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
 
     # test one sample
@@ -120,17 +124,14 @@ def train(config=None):
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
         IoU_list = []
         for idx, voxel_est in enumerate(voxel_ests):
-            intersect = voxel_est*voxel_gt  # Logical AND
-            union = voxel_est+voxel_gt  # Logical OR
-
-            IoU = intersect.sum()/float(union.sum())
+            IoU = calc_IoU(voxel_est, voxel_gt)
             IoU_list.append(IoU.cpu().numpy())
         scalar_outputs["IoU"] = np.mean(IoU_list)
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
 
     # log inside wandb
-    wandb.init(project="voxelnet", entity="lhy0807", resume=True)
+    wandb.init(project="voxelDS", entity="lhy0807", resume=True)
     # config = wandb.config
     log.info(f"wandb config: {config}")
 
@@ -202,23 +203,25 @@ def train(config=None):
         model.load_state_dict(state_dict['model'])
     log.info("Start at epoch {}".format(start_epoch))
 
-    summary(model, [(1, 3, 512, 960), (1, 3, 512, 960)])
+    summary(model, [(1, 3, 400, 880), (1, 3, 400, 880)])
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
         # lr_curr = adjust_learning_rate(optimizer, epoch_idx, config["lr"], args.lrepochs)
         # wandb.log({"lr_curr": lr_curr})
+
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             global_step = len(TrainImgLoader) * epoch_idx + batch_idx
             start_time = time.time()
             do_summary = global_step % args.summary_freq == 0
-            loss, scalar_outputs, voxel_outputs = train_sample(
+            loss, scalar_outputs, voxel_outputs, img_outputs = train_sample(
                 sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'train', scalar_outputs, global_step)
                 save_voxel(logger, 'train', voxel_outputs, global_step,
                            args.logdir, False)
+                save_images(logger, "train", img_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
                                                                                                          len(
@@ -232,7 +235,10 @@ def train(config=None):
                                                                                            len(
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
-            del scalar_outputs, voxel_outputs
+            del scalar_outputs, voxel_outputs, img_outputs
+
+            # if batch_idx >= 300:
+            #     break
 
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:
@@ -274,7 +280,8 @@ def train(config=None):
 
         save_scalars(logger, 'fulltest', avg_test_scalars,
                      len(TrainImgLoader) * (epoch_idx + 1))
-        log.info("avg_test_scalars", avg_test_scalars)
+        log.info(f"avg_test_scalars {avg_test_scalars}")
+        wandb.log({"avg_test_loss": avg_test_scalars['loss']})
 
         # saving new best checkpoint
         if avg_test_scalars['loss'] < best_checkpoint_loss:
@@ -289,5 +296,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":8, "optimizer":"adam"}
+    config = {"lr":1e-3, "batch_size":32, "optimizer":"adam"}
     train(config=config)
