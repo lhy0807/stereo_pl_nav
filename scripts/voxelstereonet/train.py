@@ -121,6 +121,7 @@ def train(config=None):
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
+        img_outputs = {}
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
         IoU_list = []
         for idx, voxel_est in enumerate(voxel_ests):
@@ -128,7 +129,11 @@ def train(config=None):
             IoU_list.append(IoU.cpu().numpy())
         scalar_outputs["IoU"] = np.mean(IoU_list)
 
-        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs
+        left_filename = os.path.join(args.datapath, sample["left_filename"][0])
+        left_img = Image.open(left_filename).convert('RGB')
+        img_outputs["left_img"] = to_tensor(left_img)
+
+        return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
     # log inside wandb
     wandb.init(project="voxelDS", entity="lhy0807", resume=True)
@@ -203,7 +208,7 @@ def train(config=None):
         model.load_state_dict(state_dict['model'])
     log.info("Start at epoch {}".format(start_epoch))
 
-    summary(model, [(1, 3, 400, 880), (1, 3, 400, 880)])
+    summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
@@ -230,6 +235,7 @@ def train(config=None):
                                                                                                          time.time() - start_time))
                 wandb.log({"train_IoU": scalar_outputs["IoU"], "train_loss": loss})
             else:
+                save_scalars(logger, 'train', scalar_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                            batch_idx,
                                                                                            len(
@@ -237,7 +243,7 @@ def train(config=None):
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
 
-            # if batch_idx >= 300:
+            # if batch_idx >= 1000:
             #     break
 
         # saving checkpoints
@@ -254,12 +260,13 @@ def train(config=None):
             global_step = len(TestImgLoader) * epoch_idx + batch_idx
             start_time = time.time()
             do_summary = global_step % args.summary_freq == 0
-            test_loss, scalar_outputs, voxel_outputs = test_sample(
+            test_loss, scalar_outputs, voxel_outputs, img_outputs = test_sample(
                 sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'test', scalar_outputs, global_step)
                 save_voxel(logger, 'test', voxel_outputs, global_step,
                            args.logdir, False)
+                save_images(logger, "train", img_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                         batch_idx,
                                                                                                         len(
@@ -268,13 +275,14 @@ def train(config=None):
                                                                                                         time.time() - start_time))
                 wandb.log({"test_IoU": scalar_outputs["IoU"], "test_loss": test_loss})
             else:
+                save_scalars(logger, 'test', scalar_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
                                                                                          batch_idx,
                                                                                          len(
                                                                                              TestImgLoader), test_loss,
                                                                                          time.time() - start_time))
             avg_test_scalars.update(scalar_outputs)
-            del scalar_outputs, voxel_outputs
+            del scalar_outputs, voxel_outputs, img_outputs
 
         avg_test_scalars = avg_test_scalars.mean()
 
