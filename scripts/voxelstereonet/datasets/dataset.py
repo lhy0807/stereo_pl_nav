@@ -402,10 +402,10 @@ class VoxelDSDataset(Dataset):
 
         # Camera intrinsics
         # 15mm images have different focals
-        self.c_u = 9.113779e+02
-        self.c_v = 3.953267e+02
-        self.f_u = 2.007113e+03
-        self.f_v = 2.007113e+03
+        self.c_u = 4.556890e+2
+        self.c_v = 1.976634e+2
+        self.f_u = 1.003556e+3
+        self.f_v = 1.003556e+3
         self.baseline = 0.54
         self.voxel_size = 0.5
 
@@ -459,8 +459,8 @@ class VoxelDSDataset(Dataset):
         return cloud
 
     def filter_cloud(self, cloud):
-        min_mask = cloud >= [-16,-34,0.0]
-        max_mask = cloud <= [16,-2,32]
+        min_mask = cloud >= [-16,-31,0.0]
+        max_mask = cloud <= [16,1,32]
         min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
         max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
         filter_mask = min_mask & max_mask
@@ -470,7 +470,7 @@ class VoxelDSDataset(Dataset):
     def calc_voxel_grid(self, filtered_cloud, voxel_size):
         xyz_q = np.floor(np.array(filtered_cloud/voxel_size)).astype(int) # quantized point values, here you will loose precision
         vox_grid = np.zeros((int(32/voxel_size), int(32/voxel_size), int(32/voxel_size))) #Empty voxel grid
-        offsets = np.array([32, 68, 0])
+        offsets = np.array([32, 62, 0])
         xyz_offset_q = xyz_q+offsets
         vox_grid[xyz_offset_q[:,0],xyz_offset_q[:,1],xyz_offset_q[:,2]] = 1 # Setting all voxels containitn a points equal to 1
 
