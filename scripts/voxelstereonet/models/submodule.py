@@ -289,13 +289,7 @@ def IoU_loss(pred, gt):
 
 
 def model_loss(voxel_ests, voxel_gt):
-    weights = [0.5, 0.7, 1.0]
-    class_weights = torch.FloatTensor([2.0, 1.2]) 
-    added_weights = []
     all_losses = []
-    for voxel_est, weight in zip(voxel_ests, weights):
-        added_weights.append(weight)
-        all_losses.append(weight * IoU_loss(voxel_est, voxel_gt))
-        # all_losses.append(weight * F.mse_loss(voxel_est.float(), voxel_gt.float()))
-        # all_losses.append(weight * F.binary_cross_entropy(voxel_est.float(), voxel_gt.float()))
-    return sum(all_losses) / sum(added_weights)
+    for voxel_est in voxel_ests:
+        all_losses.append(IoU_loss(voxel_est, voxel_gt))
+    return sum(all_losses)
