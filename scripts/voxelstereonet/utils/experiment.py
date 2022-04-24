@@ -104,17 +104,17 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
     vox_pred[vox_pred < 0.5] = 0
     vox_pred[vox_pred >= 0.5] = 1
 
-    voxel_size = 0.05
-    offsets = np.array([24, 20, 0])
+    voxel_size = 0.5
+    offsets = np.array([32, 62, 0])
 
-    cloud_pred = voxel_to_pc(vox_pred)
-    cloud_gt = voxel_to_pc(vox_gt)
+    cloud_pred = voxel_to_pc(vox_pred, voxel_size=voxel_size, offsets=offsets)
+    cloud_gt = voxel_to_pc(vox_gt, voxel_size=voxel_size, offsets=offsets)
     fig = plt.figure()
     try:
         ax = fig.add_subplot(projection='3d')
-        ax.scatter(cloud_gt[:,0],cloud_gt[:,1],cloud_gt[:,2],marker="o")
+        ax.scatter(cloud_gt[:,0],cloud_gt[:,2],cloud_gt[:,1],marker="o")
         if not gt_only:
-            ax.scatter(cloud_pred[:,0],cloud_pred[:,1],cloud_pred[:,2],marker="^")
+            ax.scatter(cloud_pred[:,0],cloud_pred[:,2],cloud_pred[:,1],marker="^")
         # plt.savefig("scatter.png")
         fig.canvas.draw()
         data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
@@ -123,7 +123,7 @@ def save_voxel(logger: SummaryWriter, mode_tag, vox_grid, global_step, logdir, g
         logger.add_image(mode_tag+"/plot", data, global_step)
 
     except Exception as e:
-        log.error(f"Error occured when saving voxel: {e}")
+        log.error(f"Error occured when saving voxel: {e}. cloud_pred shape {cloud_pred.shape}. cloud_gt shape {cloud_gt.shape}")
     plt.close(fig)
 
     
