@@ -60,7 +60,7 @@ class UNet(nn.Module):
     def __init__(self) -> None:
         super(UNet, self).__init__()
         # 48x128x240 => 64x64x128
-        self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+        self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                    nn.ReLU(inplace=True))
 
         # 64x64x128 => 128x16x32
@@ -131,7 +131,7 @@ class Voxel2D(nn.Module):
 
         self.num_groups = 1
 
-        self.volume_size = 48
+        self.volume_size = 24
 
         self.hg_size = 64
 
@@ -139,9 +139,7 @@ class Voxel2D(nn.Module):
 
         self.feature_extraction = feature_extraction(add_relus=True)
 
-        self.preconv11 = nn.Sequential(convbn(320, 256, 1, 1, 0, 1),
-                                       nn.ReLU(inplace=True),
-                                       convbn(256, 128, 1, 1, 0, 1),
+        self.preconv11 = nn.Sequential(convbn(160, 128, 1, 1, 0, 1),
                                        nn.ReLU(inplace=True),
                                        convbn(128, 64, 1, 1, 0, 1),
                                        nn.ReLU(inplace=True),
@@ -251,6 +249,4 @@ class Voxel2D(nn.Module):
         volume = torch.squeeze(volume, 1)
 
         out = self.encoder_decoder(volume)
-
-        # return [self.output_layer(out)]
         return [out]

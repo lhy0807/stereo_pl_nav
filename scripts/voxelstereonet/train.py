@@ -185,7 +185,8 @@ def train(config=None):
     else:
         raise Exception("optimizer choice error!")
 
-    model.module.load_mobile_stereo()
+    # Transfer learning
+    # model.module.load_mobile_stereo()
 
     # load parameters
     start_epoch = 0
@@ -304,5 +305,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":32, "optimizer":"adam"}
+    config = {"lr":1e-3, "batch_size":2, "optimizer":"adam"}
     train(config=config)

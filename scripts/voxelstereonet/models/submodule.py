@@ -195,9 +195,9 @@ class feature_extraction(nn.Module):
                                            )
 
         self.layer1 = self._make_layer(MobileV1_Residual, 32, 3, 1, 1, 1)
-        self.layer2 = self._make_layer(MobileV1_Residual, 64, 16, 2, 1, 1)
-        self.layer3 = self._make_layer(MobileV1_Residual, 128, 3, 1, 1, 1)
-        self.layer4 = self._make_layer(MobileV1_Residual, 128, 3, 1, 1, 2)
+        self.layer2 = self._make_layer(MobileV1_Residual, 32, 16, 2, 1, 1)
+        self.layer3 = self._make_layer(MobileV1_Residual, 64, 3, 1, 1, 1)
+        self.layer4 = self._make_layer(MobileV1_Residual, 64, 3, 1, 1, 2)
 
     def _make_layer(self, block, planes, blocks, stride, pad, dilation):
         downsample = None
