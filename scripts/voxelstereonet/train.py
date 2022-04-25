@@ -136,7 +136,7 @@ def train(config=None):
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
     # log inside wandb
-    wandb.init(project="voxelDS", entity="lhy0807", resume=True)
+    wandb.init(project="voxelDS", entity="nu-team", resume=True)
     # config = wandb.config
     log.info(f"wandb config: {config}")
 
