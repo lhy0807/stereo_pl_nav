@@ -6,10 +6,14 @@
 #SBATCH --mem=32GB
 #SBATCH --output=HPC_log/myjob.%j.out
 #SBATCH --error=HPC_log/myjob.%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=hongyu@ccs.neu.edu
 
 singularity exec --nv --overlay /scratch/yw3076/lhy/overlay-50G-10M.ext3:rw \
-/scratch/work/public/singularity/cuda11.6.124-cudnn8.4.0.27-devel-ubuntu20.04.4.sif /bin/bash
+/scratch/work/public/singularity/cuda11.6.124-cudnn8.4.0.27-devel-ubuntu20.04.4.sif /bin/bash -c "
 
-. "/ext3/miniconda3/etc/profile.d/conda.sh"
+. /ext3/miniconda3/etc/profile.d/conda.sh
 conda activate lhy
 sh train_ds_greene.sh
+
+"
