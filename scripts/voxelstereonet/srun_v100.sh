@@ -1,0 +1,1 @@
+srun --partition=gpu --gres=gpu:v100-sxm2:1 --time=08:00:00 --mem=16GB --cpus-per-task=10 --pty /bin/bash
