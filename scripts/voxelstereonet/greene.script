@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --time=01:00:00
+#SBATCH --gres=gpu:2
+#SBATCH --cpus-per-task=20
+#SBATCH --mem=32GB
+#SBATCH --output=HPC_log/myjob.%j.out
+#SBATCH --error=HPC_log/myjob.%j.err
+
+singularity exec --nv --overlay /scratch/yw3076/lhy/overlay-50G-10M.ext3:rw \
+/scratch/work/public/singularity/cuda11.6.124-cudnn8.4.0.27-devel-ubuntu20.04.4.sif /bin/bash
+
+. "/ext3/miniconda3/etc/profile.d/conda.sh"
+conda activate lhy
+sh train_ds_greene.sh
