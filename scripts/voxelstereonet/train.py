@@ -305,5 +305,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":2, "optimizer":"adam"}
+    config = {"lr":1e-3, "batch_size":16, "optimizer":"adam"}
     train(config=config)
