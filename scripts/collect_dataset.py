@@ -1,17 +1,11 @@
 # import the opencv library
-from tkinter import RIGHT
 import cv2
 import configparser
-from matplotlib import image
 import numpy as np
 import os
 import logging
 import coloredlogs
 import time
-from cv_bridge import CvBridge
-import rospy
-from sensor_msgs.msg import Image, CameraInfo
-from std_msgs.msg import Header
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=logger)
@@ -99,9 +93,6 @@ def read_calib(calib_file="SN28281527.conf"):
     return map_left_x, map_left_y, map_right_x, map_right_y
 
 def main():
-
-    rate = rospy.Rate(1)
-
     # read ZED2 factory calibration file
     map_left_x, map_left_y, map_right_x, map_right_y = read_calib()
 
@@ -111,7 +102,9 @@ def main():
     vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 376)
     FRAME_WIDTH = int(1344/2)
     
-    while not rospy.is_shutdown():    
+    time.sleep(3)
+    logger.info("start capture!")
+    while True:    
         # Capture the video frame
         # by frame
         frame_time = int(time.time()*10)
@@ -123,9 +116,13 @@ def main():
         left_rect = cv2.remap(left_frame, map_left_x, map_left_y, cv2.INTER_LINEAR)
         right_rect = cv2.remap(right_frame, map_right_x, map_right_y, cv2.INTER_LINEAR)
 
-        cv2.imwrite(f"left/{frame_time}.jpg", left_rect)
-        cv2.imwrite(f"right/{frame_time}.jpg", right_rect)
-        rate.sleep()
+        cv2.imshow("left", left_rect)
+        cv2.waitKey(1)
+
+        cv2.imwrite(f"zed_dataset/left/{frame_time}.jpg", left_rect)
+        cv2.imwrite(f"zed_dataset/right/{frame_time}.jpg", right_rect)
+
+        time.sleep(1.0)
 
     
     # After the loop release the cap object
