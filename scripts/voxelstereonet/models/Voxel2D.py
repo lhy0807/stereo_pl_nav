@@ -72,24 +72,22 @@ class UNet(nn.Module):
                                    nn.ReLU(inplace=True))
 
         self.linear1 = nn.Sequential(
-            nn.Linear(256*3*7, 1024), nn.ReLU(inplace=True))
-        # self.linear1 = nn.Sequential(
-        #     nn.Linear(256*4*8, 1024), nn.ReLU(inplace=True))
+            nn.Linear(256*3*7, 512), nn.ReLU(inplace=True))
         self.linear2 = nn.Sequential(
-            nn.Linear(1024, 1024), nn.ReLU(inplace=True))
+            nn.Linear(512, 512), nn.ReLU(inplace=True))
         self.linear3 = nn.Sequential(
-            nn.Linear(1024, 256), nn.ReLU(inplace=True))
+            nn.Linear(512, 128), nn.ReLU(inplace=True))
 
         # 256x1x1x1 => 256x2x2x2
-        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(256, 128, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
-                                     nn.BatchNorm3d(128),
-                                     nn.ReLU(inplace=True))
-
-        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
+        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
                                      nn.BatchNorm3d(64),
                                      nn.ReLU(inplace=True))
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(64, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+                                     nn.BatchNorm3d(32),
+                                     nn.ReLU(inplace=True))
+
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2), bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
         self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
@@ -111,7 +109,7 @@ class UNet(nn.Module):
         latent = self.linear3(linear2)
 
         # decoding
-        latent = reshape(latent, (B, 256, 1, 1, 1))
+        latent = reshape(latent, (B, 128, 1, 1, 1))
 
         deconv1 = self.deconv1(latent)
         deconv2 = self.deconv2(deconv1)
@@ -145,19 +143,19 @@ class Voxel2D(nn.Module):
                                        nn.ReLU(inplace=True),
                                        nn.Conv2d(64, 32, 1, 1, 0, 1))
 
-        self.conv3d = nn.Sequential(nn.Conv3d(1, 16, kernel_size=(8, 3, 3), stride=[8, 1, 1], padding=[0, 1, 1]),
+        self.conv3d = nn.Sequential(nn.Conv3d(1, 8, kernel_size=(8, 3, 3), stride=[8, 1, 1], padding=[0, 1, 1], bias=False),
+                                    nn.BatchNorm3d(8),
+                                    nn.ReLU(),
+                                    nn.Conv3d(8, 16, kernel_size=(4, 3, 3), stride=[
+                                              4, 1, 1], padding=[0, 1, 1], bias=False),
                                     nn.BatchNorm3d(16),
                                     nn.ReLU(),
-                                    nn.Conv3d(16, 32, kernel_size=(4, 3, 3), stride=[
-                                              4, 1, 1], padding=[0, 1, 1]),
-                                    nn.BatchNorm3d(32),
-                                    nn.ReLU(),
-                                    nn.Conv3d(32, 16, kernel_size=(2, 3, 3), stride=[
-                                              2, 1, 1], padding=[0, 1, 1]),
-                                    nn.BatchNorm3d(16),
+                                    nn.Conv3d(16, 8, kernel_size=(2, 3, 3), stride=[
+                                              2, 1, 1], padding=[0, 1, 1], bias=False),
+                                    nn.BatchNorm3d(8),
                                     nn.ReLU())
 
-        self.volume11 = nn.Sequential(convbn(16, 1, 1, 1, 0, 1),
+        self.volume11 = nn.Sequential(convbn(8, 1, 1, 1, 0, 1),
                                       nn.ReLU(inplace=True))
 
         self.output_layer = nn.Sequential(nn.Conv2d(self.hg_size, self.hg_size, 1, 1, 0),
@@ -231,12 +229,13 @@ class Voxel2D(nn.Module):
         volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
         for i in range(self.volume_size):
             if i > 0:
-                x = interweave_tensors(featL[:, :, :, i:], featR[:, :, :, :-i])
+                j = 2*i
+                x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)
                 x = torch.squeeze(x, 2)
                 x = self.volume11(x)
-                volume[:, :, i, :, i:] = x
+                volume[:, :, i, :, j:] = x
             else:
                 x = interweave_tensors(featL, featR)
                 x = torch.unsqueeze(x, 1)

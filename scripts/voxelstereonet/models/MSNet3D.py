@@ -4,7 +4,7 @@ import math
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
-from .submodule import feature_extraction, MobileV2_Residual_3D, convbn_3d, build_gwc_volume, disparity_regression
+from .submodule import original_feature_extraction, MobileV2_Residual_3D, convbn_3d, build_gwc_volume, disparity_regression
 
 
 class hourglass3D(nn.Module):
@@ -58,7 +58,7 @@ class MSNet3D(nn.Module):
 
         self.num_groups = 40
 
-        self.feature_extraction = feature_extraction()
+        self.feature_extraction = original_feature_extraction()
 
         self.dres0 = nn.Sequential(
             MobileV2_Residual_3D(self.num_groups, self.hourglass_size, 1, self.dres_expanse_ratio),

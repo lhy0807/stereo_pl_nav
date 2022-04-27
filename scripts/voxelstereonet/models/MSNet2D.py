@@ -4,7 +4,7 @@ import math
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
-from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, disparity_regression
+from .submodule import original_feature_extraction, MobileV2_Residual, convbn, interweave_tensors, disparity_regression
 
 
 class hourglass2D(nn.Module):
@@ -60,7 +60,7 @@ class MSNet2D(nn.Module):
 
         self.dres_expanse_ratio = 3
 
-        self.feature_extraction = feature_extraction(add_relus=True)
+        self.feature_extraction = original_feature_extraction(add_relus=True)
 
         self.preconv11 = nn.Sequential(convbn(320, 256, 1, 1, 0, 1),
                                        nn.ReLU(inplace=True),
