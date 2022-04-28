@@ -122,7 +122,7 @@ def main():
         cv2.imwrite(f"zed_dataset/left/{frame_time}.jpg", left_rect)
         cv2.imwrite(f"zed_dataset/right/{frame_time}.jpg", right_rect)
 
-        time.sleep(1.0)
+        time.sleep(0.5)
 
     
     # After the loop release the cap object
