@@ -10,7 +10,7 @@
 #SBATCH --mail-user=hongyu@ccs.neu.edu
 
 singularity exec --rocm --overlay /scratch/yw3076/lhy/amd/overlay-50G-10M.ext3:rw --overlay /scratch/yw3076/lhy/DS.sqf:ro \
-/scratch/work/public/singularity/hudson/images/rocm4.5.2-ubuntu20.04.3.sif /bin/bash -c "
+/scratch/work/public/singularity/hudson/images/rocm4.3.1-ubuntu20.04.2.sif /bin/bash -c "
 
 . /ext3/miniconda3/etc/profile.d/conda.sh
 conda activate lhy
