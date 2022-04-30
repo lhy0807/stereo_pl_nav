@@ -158,7 +158,7 @@ def train(config=None):
         logdir_name += '_'
         logdir_name += str(v)
         logdir_name += '_'
-        
+
     if args.log_folder_suffix != "":
         logdir_name += args.log_folder_suffix
     
@@ -175,9 +175,9 @@ def train(config=None):
     train_dataset = StereoDataset(args.datapath, args.trainlist, True)
     test_dataset = StereoDataset(args.datapath, args.testlist, False)
     TrainImgLoader = DataLoader(
-        train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True)
+        train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True, pin_memory=True)
     TestImgLoader = DataLoader(
-        test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
+        test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False, pin_memory=True)
 
     # model, optimizer
     model = __models__[args.model](args.maxdisp)
