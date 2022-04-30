@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --gres=gpu:mi50:4
-#SBATCH --cpus-per-task=20
+#SBATCH --gres=gpu:mi50:6
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=32GB
 #SBATCH --output=HPC_log/myjob.%j.out
 #SBATCH --error=HPC_log/myjob.%j.err
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=hongyu@ccs.neu.edu
+#SBATCH --mail-user=lihongyu0807@icloud.com
 
 singularity exec --rocm --overlay /scratch/yw3076/lhy/amd/overlay-50G-10M.ext3:rw --overlay /scratch/yw3076/lhy/DS.sqf:ro \
 /scratch/work/public/singularity/hudson/images/rocm4.2-ubuntu20.04.sif /bin/bash -c "
