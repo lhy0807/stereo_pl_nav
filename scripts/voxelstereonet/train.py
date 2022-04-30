@@ -34,7 +34,7 @@ parser.add_argument('--dataset', required=True,
 parser.add_argument('--datapath', required=True, help='data path')
 parser.add_argument('--trainlist', required=True, help='training list')
 parser.add_argument('--testlist', required=True, help='testing list')
-parser.add_argument('--lr', type=float, default=1e-5,
+parser.add_argument('--lr', type=float, default=1e-3,
                     help='base learning rate')
 parser.add_argument('--lrepochs', type=str, required=True,
                     help='the epochs to decay lr: the downscale rate')
@@ -61,6 +61,9 @@ parser.add_argument('--loader_workers', type=int, default=4,
 parser.add_argument('--optimizer', type=str, default="adam",
                     help='Choice of optimizer (adam or sgd)',
                     choices=["adam","sgd"])
+
+parser.add_argument('--log_folder_suffix', type=str, default="")
+
 
 
 # parse arguments, set seeds
@@ -149,14 +152,17 @@ def train(config=None):
 
     print("==========================\n", modelName, "\n==========================")
 
-    logdir_prefix = ""
+    logdir_name = ""
     for k, v in config.items():
-        logdir_prefix += str(k)
-        logdir_prefix += '_'
-        logdir_prefix += str(v)
-        logdir_prefix += '_'
+        logdir_name += str(k)
+        logdir_name += '_'
+        logdir_name += str(v)
+        logdir_name += '_'
+        
+    if args.log_folder_suffix != "":
+        logdir_name += args.log_folder_suffix
     
-    args.logdir = os.path.join(args.logdir, logdir_prefix) + "/"
+    args.logdir = os.path.join(args.logdir, logdir_name) + "/"
 
     log.info(f"Saving log at directory {args.logdir}")
     os.makedirs(args.logdir, mode=0o770, exist_ok=True)
@@ -190,7 +196,7 @@ def train(config=None):
 
     # load parameters
     start_epoch = 0
-    if args.resume or wandb.run.resumed:
+    if args.resume:
         # find all checkpoints file and sort according to epoch id
         all_saved_ckpts = [fn for fn in os.listdir(
             args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
@@ -305,5 +311,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":16, "optimizer":"adam"}
+    config = {"lr":args.lr, "batch_size":args.batch_size, "optimizer":"adam"}
     train(config=config)
