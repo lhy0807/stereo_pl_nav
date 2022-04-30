@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --gres=gpu:mi50:6
+#SBATCH --gres=gpu:mi50:8
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=32GB
 #SBATCH --output=HPC_log/myjob.%j.out
