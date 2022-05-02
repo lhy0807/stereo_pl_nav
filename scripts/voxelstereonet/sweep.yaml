@@ -1,7 +1,7 @@
 method: bayes
 metric:
   goal: minimize
-  name: test_loss
+  name: avg_test_loss
 parameters:
   batch_size:
     values:

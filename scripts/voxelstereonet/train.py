@@ -93,11 +93,7 @@ def train(config=None):
         if compute_metrics:
             with torch.no_grad():
                 voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-                IoU_list = []
-                for idx, voxel_est in enumerate(voxel_ests):
-                    IoU = calc_IoU(voxel_est, voxel_gt)
-                    IoU_list.append(IoU.cpu().numpy())
-                scalar_outputs["IoU"] = np.mean(IoU_list)
+                scalar_outputs["IoU"] = 1-loss
 
                 left_filename = os.path.join(args.datapath, sample["left_filename"][0])
                 left_img = Image.open(left_filename).convert('RGB')
@@ -126,11 +122,7 @@ def train(config=None):
         scalar_outputs = {"loss": loss}
         img_outputs = {}
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-        IoU_list = []
-        for idx, voxel_est in enumerate(voxel_ests):
-            IoU = calc_IoU(voxel_est, voxel_gt)
-            IoU_list.append(IoU.cpu().numpy())
-        scalar_outputs["IoU"] = np.mean(IoU_list)
+        scalar_outputs["IoU"] = 1-loss
 
         left_filename = os.path.join(args.datapath, sample["left_filename"][0])
         left_img = Image.open(left_filename).convert('RGB')
@@ -196,11 +188,12 @@ def train(config=None):
 
     # load parameters
     start_epoch = 0
-    if args.resume:
+    all_saved_ckpts = [fn for fn in os.listdir(
+        args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
+    if args.resume and len(all_saved_ckpts) > 0:
         # find all checkpoints file and sort according to epoch id
-        all_saved_ckpts = [fn for fn in os.listdir(
-            args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
         all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
+
         # use the latest checkpoint file
         loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
         log.info("Loading the latest model in logdir: {}".format(loadckpt))
