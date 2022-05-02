@@ -1,1 +1,1 @@
-srun --partition=gpu --gres=gpu:p100:1 --time=08:00:00 --mem=16GB --cpus-per-task=10 --pty /bin/bash
+srun --partition=multigpu --gres=gpu:p100:4 --time=00:30:00 --mem=128GB --cpus-per-task=24 --pty /bin/bash

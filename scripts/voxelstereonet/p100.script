@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --time=08:00:00
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:p100:1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem=16GB
+#SBATCH --time=24:00:00
+#SBATCH --partition=multigpu
+#SBATCH --gres=gpu:p100:4
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=128GB
 #SBATCH --output=HPC_log/myjob.%j.out
 #SBATCH --error=HPC_log/myjob.%j.err
 
