@@ -121,11 +121,12 @@ class UNet(nn.Module):
 
 
 class Voxel2D(nn.Module):
-    def __init__(self, maxdisp):
+    def __init__(self, maxdisp, cost_vol_type="even"):
 
         super(Voxel2D, self).__init__()
 
         self.maxdisp = maxdisp
+        self.cost_vol_type = cost_vol_type
 
         self.num_groups = 1
 
@@ -226,10 +227,24 @@ class Voxel2D(nn.Module):
         featR = self.preconv11(features_R)
 
         B, C, H, W = featL.shape
-        volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
-        for i in range(self.volume_size):
+
+        iter_size = self.volume_size
+        if self.cost_vol_type == "full":
+            iter_size = int(self.volume_size*2)
+            volume = featL.new_zeros([B, self.num_groups, int(self.volume_size*2), H, W])
+        else:
+            volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
+
+        for i in range(iter_size):
             if i > 0:
-                j = 2*i
+                if self.cost_vol_type == "even":
+                    j = 2*i
+                elif self.cost_vol_type == "front":
+                    j = int(i + self.volume_size)
+                elif self.cost_vol_type == "back":
+                    j = i
+                elif self.cost_vol_type == "full":
+                    j = i
                 x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)

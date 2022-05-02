@@ -61,7 +61,9 @@ parser.add_argument('--loader_workers', type=int, default=4,
 parser.add_argument('--optimizer', type=str, default="adam",
                     help='Choice of optimizer (adam or sgd)',
                     choices=["adam","sgd"])
-
+parser.add_argument('--cost_vol_type', type=str, default="even",
+                    help='Choice of Cost Volume Type',
+                    choices=["even","front","back","full","voxel"])
 parser.add_argument('--log_folder_suffix', type=str, default="")
 
 
@@ -131,7 +133,7 @@ def train(config=None):
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
     # log inside wandb
-    wandb.init(project="voxelDS", entity="nu-team", resume=True)
+    wandb.init(project="voxelDS", entity="nu-team")
     # config = wandb.config
     log.info(f"wandb config: {config}")
 
@@ -172,9 +174,12 @@ def train(config=None):
         test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False, pin_memory=True, persistent_workers=True, prefetch_factor=4)
 
     # model, optimizer
-    model = __models__[args.model](args.maxdisp)
+    model = __models__[args.model](args.maxdisp, config["cost_vol_type"])
     model = nn.DataParallel(model)
     model.cuda()
+
+    # record cost volume type
+    wandb.log({"cost_vol_type": config["cost_vol_type"]})
 
     if config["optimizer"] == "adam":
         optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
@@ -304,5 +309,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":args.lr, "batch_size":args.batch_size, "optimizer":"adam"}
+    config = {"lr":args.lr, "batch_size":args.batch_size, "cost_vol_type":args.cost_vol_type, "optimizer":"adam"}
     train(config=config)
