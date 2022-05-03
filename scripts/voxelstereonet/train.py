@@ -65,6 +65,7 @@ parser.add_argument('--cost_vol_type', type=str, default="even",
                     help='Choice of Cost Volume Type',
                     choices=["even","front","back","full","voxel"])
 parser.add_argument('--log_folder_suffix', type=str, default="")
+parser.add_argument('--wandb_run_id', type=str, default="")
 
 
 
@@ -133,7 +134,10 @@ def train(config=None):
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
     # log inside wandb
-    wandb.init(project="voxelDS", entity="nu-team")
+    if args.wandb_run_id == "":
+        wandb.init(project="voxelDS", entity="nu-team")
+    else:
+        wandb.init(project="voxelDS", entity="nu-team", id=args.wandb_run_id)
     # config = wandb.config
     log.info(f"wandb config: {config}")
 
