@@ -57,11 +57,15 @@ class hourglass2D(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, cost_vol_type) -> None:
         super(UNet, self).__init__()
         # 48x128x240 => 64x64x128
-        self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
-                                   nn.ReLU(inplace=True))
+        if cost_vol_type == "full":
+            self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
+        else:
+            self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
 
         # 64x64x128 => 128x16x32
         self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0)),
@@ -162,7 +166,7 @@ class Voxel2D(nn.Module):
         self.output_layer = nn.Sequential(nn.Conv2d(self.hg_size, self.hg_size, 1, 1, 0),
                                           nn.Sigmoid())
 
-        self.encoder_decoder = UNet()
+        self.encoder_decoder = UNet(self.cost_vol_type)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
