@@ -408,10 +408,9 @@ class VoxelDSDataset(Dataset):
         self.f_v = 1.003556e+3
         self.baseline = 0.54
         self.voxel_size = 0.5
+        # # set the maximum perception depth
+        # self.max_depth = 32
         '''
-        # set the maximum perception depth
-        self.max_depth = 32
-        
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
         max_disp = 192
