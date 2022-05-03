@@ -137,7 +137,7 @@ def train(config=None):
     if args.wandb_run_id == "":
         wandb.init(project="voxelDS", entity="nu-team")
     else:
-        wandb.init(project="voxelDS", entity="nu-team", id=args.wandb_run_id)
+        wandb.init(project="voxelDS", entity="nu-team", id=args.wandb_run_id, resume=True)
     # config = wandb.config
     log.info(f"wandb config: {config}")
 

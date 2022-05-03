@@ -408,7 +408,27 @@ class VoxelDSDataset(Dataset):
         self.f_v = 1.003556e+3
         self.baseline = 0.54
         self.voxel_size = 0.5
+        '''
+        # set the maximum perception depth
+        self.max_depth = 32
+        
+        # calculate voxel cost volume disparity set
+        vox_cost_vol_disp_set = set()
+        max_disp = 192
+        # depth starting from voxel_size since 0 will cause issue
+        for z in range(self.voxel_size, self.max_depth, self.voxel_size):
+            # get respective disparity
+            d = self.f_u * self.baseline / z
 
+            if d > max_disp:
+                continue
+            
+            # real disparity -> disparity in feature map
+            vox_cost_vol_disp_set.add(round(d/4))
+        
+        self.vox_cost_vol_disps = list(vox_cost_vol_disp_set)
+        self.vox_cost_vol_disps = sorted(self.vox_cost_vol_disps)
+        '''
 
     def load_path(self, list_filename):
         lines = read_all_lines(list_filename)
@@ -460,7 +480,7 @@ class VoxelDSDataset(Dataset):
 
     def filter_cloud(self, cloud):
         min_mask = cloud >= [-16,-31,0.0]
-        max_mask = cloud <= [16,1,32]
+        max_mask = cloud <= [16,1,self.max_depth]
         min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
         max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
         filter_mask = min_mask & max_mask
