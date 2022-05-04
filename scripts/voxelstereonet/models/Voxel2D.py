@@ -64,7 +64,7 @@ class UNet(nn.Module):
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         else:
-            self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+            self.conv1 = nn.Sequential(nn.Conv2d(16, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
 
         # 64x64x128 => 128x16x32
@@ -134,7 +134,7 @@ class Voxel2D(nn.Module):
 
         self.num_groups = 1
 
-        self.volume_size = 24
+        self.volume_size = 16
 
         self.hg_size = 64
 
@@ -234,17 +234,18 @@ class Voxel2D(nn.Module):
 
         iter_size = self.volume_size
         if self.cost_vol_type == "full":
-            iter_size = int(self.volume_size*2)
-            volume = featL.new_zeros([B, self.num_groups, int(self.volume_size*2), H, W])
+            # full disparity = 16x3 = 48
+            iter_size = int(self.volume_size*3)
+            volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
         else:
             volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
 
         for i in range(iter_size):
             if i > 0:
                 if self.cost_vol_type == "even":
-                    j = 2*i
+                    j = 3*i
                 elif self.cost_vol_type == "front":
-                    j = int(i + self.volume_size)
+                    j = int(i + self.volume_size*2)
                 elif self.cost_vol_type == "back":
                     j = i
                 elif self.cost_vol_type == "full":

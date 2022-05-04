@@ -11,7 +11,7 @@ def input_constructor(input_shape):
     inputs = {'L': torch.ones(input_shape), 'R': torch.ones(input_shape)}
     return inputs
 
-model = Voxel2D(192)
+model = Voxel2D(192,"front")
 
 input_L = torch.randn(1, 3, 400, 880)
 input_R = torch.randn(1, 3, 400, 880)
