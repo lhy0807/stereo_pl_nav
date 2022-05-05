@@ -76,14 +76,14 @@ def train(config=None):
     def train_sample(sample, compute_metrics=False):
         model.train()
 
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
         imgL = imgL.cuda()
         imgR = imgR.cuda()
         voxel_gt = voxel_gt.cuda()
 
         optimizer.zero_grad()
 
-        voxel_ests = model(imgL, imgR)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol)
         loss = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
@@ -110,12 +110,12 @@ def train(config=None):
     def test_sample(sample, compute_metrics=True):
         model.eval()
 
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
+        imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
         imgL = imgL.cuda()
         imgR = imgR.cuda()
         voxel_gt = voxel_gt.cuda()
 
-        voxel_ests = model(imgL, imgR)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol)
         loss = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]

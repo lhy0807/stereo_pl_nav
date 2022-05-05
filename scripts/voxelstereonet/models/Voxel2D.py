@@ -63,6 +63,9 @@ class UNet(nn.Module):
         if cost_vol_type == "full":
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
+        elif cost_vol_type == "voxel":
+            self.conv1 = nn.Sequential(nn.Conv2d(15, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
         else:
             self.conv1 = nn.Sequential(nn.Conv2d(16, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
@@ -185,45 +188,7 @@ class Voxel2D(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def select_layers(self, name):
-        selected_layer_names = ["feature_extraction",
-                                "preconv11", "conv3d", "volume11"]
-        for layer in selected_layer_names:
-            if layer in name:
-                return True
-        return False
-
-    def load_mobile_stereo(self, mobile_stereo_model="../models/MSNet2D_SF_DS_KITTI2015.ckpt"):
-        print("Loading from MobileStereoNet 2D")
-        state_dict = torch.load(mobile_stereo_model)["model"]
-        model_dict = self.state_dict()
-        pretrained_dict = OrderedDict()
-        for name, param in state_dict.items():
-            name = name.split("module.")[1]
-            if name not in model_dict:
-                continue
-            if not self.select_layers(name):
-                continue
-            pretrained_dict[name] = param
-
-        model_dict.update(pretrained_dict)
-        self.load_state_dict(model_dict)
-
-        del state_dict
-
-        for param in self.feature_extraction.parameters():
-            param.requires_grad = False
-
-        for param in self.preconv11.parameters():
-            param.requires_grad = False
-
-        for param in self.conv3d.parameters():
-            param.requires_grad = False
-
-        for param in self.volume11.parameters():
-            param.requires_grad = False
-
-    def forward(self, L, R):
+    def forward(self, L, R, voxel_cost_vol=[0]):
         features_L = self.feature_extraction(L)
         features_R = self.feature_extraction(R)
 
@@ -236,9 +201,10 @@ class Voxel2D(nn.Module):
         if self.cost_vol_type == "full":
             # full disparity = 16x3 = 48
             iter_size = int(self.volume_size*3)
-            volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
-        else:
-            volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
+        elif self.cost_vol_type == "voxel":
+            iter_size = len(voxel_cost_vol) + 1
+
+        volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
 
         for i in range(iter_size):
             if i > 0:
@@ -250,6 +216,8 @@ class Voxel2D(nn.Module):
                     j = i
                 elif self.cost_vol_type == "full":
                     j = i
+                elif self.cost_vol_type == "voxel":
+                    j = voxel_cost_vol[i-1]
                 x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)
