@@ -214,7 +214,8 @@ def train(config=None):
     # record cost volume type
     wandb.log({"cost_vol_type": config["cost_vol_type"]})
 
-    summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
+    if config["cost_vol_type"] != "voxel":
+        summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
