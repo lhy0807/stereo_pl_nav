@@ -217,7 +217,6 @@ class Voxel2D(nn.Module):
                 elif self.cost_vol_type == "full":
                     j = i
                 elif self.cost_vol_type == "voxel":
-                    print(voxel_cost_vol[i-1])
                     j = int(voxel_cost_vol[i-1])
                 x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
