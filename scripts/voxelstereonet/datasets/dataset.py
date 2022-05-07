@@ -469,7 +469,7 @@ class VoxelDSDataset(Dataset):
         except Exception as e:
             pass
         
-        print(vox_grid_gt)
+        print(self.vox_cost_vol_disps)
         return {"left": left_img,
                 "right": right_img,
                 "disparity": disparity,
