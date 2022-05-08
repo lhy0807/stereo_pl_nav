@@ -77,9 +77,10 @@ def train(config=None):
         model.train()
 
         imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
+        if torch.cuda.is_available():
+            imgL = imgL.cuda()
+            imgR = imgR.cuda()
+            voxel_gt = voxel_gt.cuda()
 
         optimizer.zero_grad()
 
@@ -111,9 +112,10 @@ def train(config=None):
         model.eval()
 
         imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
+        if torch.cuda.is_available():
+            imgL = imgL.cuda()
+            imgR = imgR.cuda()
+            voxel_gt = voxel_gt.cuda()
 
         voxel_ests = model(imgL, imgR, voxel_cost_vol)
         loss = model_loss(voxel_ests, voxel_gt)
@@ -169,7 +171,8 @@ def train(config=None):
     # model, optimizer
     model = __models__[args.model](args.maxdisp, config["cost_vol_type"])
     model = nn.DataParallel(model)
-    model.cuda()
+    if torch.cuda.is_available():
+        model.cuda()
 
     if config["optimizer"] == "adam":
         optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
