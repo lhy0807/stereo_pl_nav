@@ -1,20 +1,13 @@
 method: bayes
 metric:
   goal: minimize
-  name: test_loss
+  name: avg_test_loss
 parameters:
-  batch_size:
+  cost_volume_type:
     values:
-    - 8
-    - 12
-    - 16
-  lr:
-    values:
-    - 1e-03
-    - 5e-04
-    - 1e-04
-    - 5e-05
-    - 1e-05
-    - 5e-06
-    - 1e-06
+    - "even"
+    - "front"
+    - "back"
+    - "full"
+    - "voxel"
 program: train.py

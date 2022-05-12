@@ -57,11 +57,18 @@ class hourglass2D(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, cost_vol_type) -> None:
         super(UNet, self).__init__()
         # 48x128x240 => 64x64x128
-        self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
-                                   nn.ReLU(inplace=True))
+        if cost_vol_type == "full":
+            self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
+        elif cost_vol_type == "voxel":
+            self.conv1 = nn.Sequential(nn.Conv2d(15, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
+        else:
+            self.conv1 = nn.Sequential(nn.Conv2d(16, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+                                    nn.ReLU(inplace=True))
 
         # 64x64x128 => 128x16x32
         self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0)),
@@ -72,24 +79,22 @@ class UNet(nn.Module):
                                    nn.ReLU(inplace=True))
 
         self.linear1 = nn.Sequential(
-            nn.Linear(256*3*7, 1024), nn.ReLU(inplace=True))
-        # self.linear1 = nn.Sequential(
-        #     nn.Linear(256*4*8, 1024), nn.ReLU(inplace=True))
+            nn.Linear(256*3*7, 512), nn.ReLU(inplace=True))
         self.linear2 = nn.Sequential(
-            nn.Linear(1024, 1024), nn.ReLU(inplace=True))
+            nn.Linear(512, 512), nn.ReLU(inplace=True))
         self.linear3 = nn.Sequential(
-            nn.Linear(1024, 256), nn.ReLU(inplace=True))
+            nn.Linear(512, 128), nn.ReLU(inplace=True))
 
         # 256x1x1x1 => 256x2x2x2
-        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(256, 128, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
-                                     nn.BatchNorm3d(128),
-                                     nn.ReLU(inplace=True))
-
-        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0)),
+        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
                                      nn.BatchNorm3d(64),
                                      nn.ReLU(inplace=True))
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(64, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+                                     nn.BatchNorm3d(32),
+                                     nn.ReLU(inplace=True))
+
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2), bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
         self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
@@ -111,7 +116,7 @@ class UNet(nn.Module):
         latent = self.linear3(linear2)
 
         # decoding
-        latent = reshape(latent, (B, 256, 1, 1, 1))
+        latent = reshape(latent, (B, 128, 1, 1, 1))
 
         deconv1 = self.deconv1(latent)
         deconv2 = self.deconv2(deconv1)
@@ -123,15 +128,16 @@ class UNet(nn.Module):
 
 
 class Voxel2D(nn.Module):
-    def __init__(self, maxdisp):
+    def __init__(self, maxdisp, cost_vol_type="even"):
 
         super(Voxel2D, self).__init__()
 
         self.maxdisp = maxdisp
+        self.cost_vol_type = cost_vol_type
 
         self.num_groups = 1
 
-        self.volume_size = 24
+        self.volume_size = 16
 
         self.hg_size = 64
 
@@ -145,25 +151,25 @@ class Voxel2D(nn.Module):
                                        nn.ReLU(inplace=True),
                                        nn.Conv2d(64, 32, 1, 1, 0, 1))
 
-        self.conv3d = nn.Sequential(nn.Conv3d(1, 16, kernel_size=(8, 3, 3), stride=[8, 1, 1], padding=[0, 1, 1]),
+        self.conv3d = nn.Sequential(nn.Conv3d(1, 8, kernel_size=(8, 3, 3), stride=[8, 1, 1], padding=[0, 1, 1], bias=False),
+                                    nn.BatchNorm3d(8),
+                                    nn.ReLU(),
+                                    nn.Conv3d(8, 16, kernel_size=(4, 3, 3), stride=[
+                                              4, 1, 1], padding=[0, 1, 1], bias=False),
                                     nn.BatchNorm3d(16),
                                     nn.ReLU(),
-                                    nn.Conv3d(16, 32, kernel_size=(4, 3, 3), stride=[
-                                              4, 1, 1], padding=[0, 1, 1]),
-                                    nn.BatchNorm3d(32),
-                                    nn.ReLU(),
-                                    nn.Conv3d(32, 16, kernel_size=(2, 3, 3), stride=[
-                                              2, 1, 1], padding=[0, 1, 1]),
-                                    nn.BatchNorm3d(16),
+                                    nn.Conv3d(16, 8, kernel_size=(2, 3, 3), stride=[
+                                              2, 1, 1], padding=[0, 1, 1], bias=False),
+                                    nn.BatchNorm3d(8),
                                     nn.ReLU())
 
-        self.volume11 = nn.Sequential(convbn(16, 1, 1, 1, 0, 1),
+        self.volume11 = nn.Sequential(convbn(8, 1, 1, 1, 0, 1),
                                       nn.ReLU(inplace=True))
 
         self.output_layer = nn.Sequential(nn.Conv2d(self.hg_size, self.hg_size, 1, 1, 0),
                                           nn.Sigmoid())
 
-        self.encoder_decoder = UNet()
+        self.encoder_decoder = UNet(self.cost_vol_type)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -182,45 +188,7 @@ class Voxel2D(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def select_layers(self, name):
-        selected_layer_names = ["feature_extraction",
-                                "preconv11", "conv3d", "volume11"]
-        for layer in selected_layer_names:
-            if layer in name:
-                return True
-        return False
-
-    def load_mobile_stereo(self, mobile_stereo_model="../models/MSNet2D_SF_DS_KITTI2015.ckpt"):
-        print("Loading from MobileStereoNet 2D")
-        state_dict = torch.load(mobile_stereo_model)["model"]
-        model_dict = self.state_dict()
-        pretrained_dict = OrderedDict()
-        for name, param in state_dict.items():
-            name = name.split("module.")[1]
-            if name not in model_dict:
-                continue
-            if not self.select_layers(name):
-                continue
-            pretrained_dict[name] = param
-
-        model_dict.update(pretrained_dict)
-        self.load_state_dict(model_dict)
-
-        del state_dict
-
-        for param in self.feature_extraction.parameters():
-            param.requires_grad = False
-
-        for param in self.preconv11.parameters():
-            param.requires_grad = False
-
-        for param in self.conv3d.parameters():
-            param.requires_grad = False
-
-        for param in self.volume11.parameters():
-            param.requires_grad = False
-
-    def forward(self, L, R):
+    def forward(self, L, R, voxel_cost_vol=[0]):
         features_L = self.feature_extraction(L)
         features_R = self.feature_extraction(R)
 
@@ -228,15 +196,34 @@ class Voxel2D(nn.Module):
         featR = self.preconv11(features_R)
 
         B, C, H, W = featL.shape
-        volume = featL.new_zeros([B, self.num_groups, self.volume_size, H, W])
-        for i in range(self.volume_size):
+
+        iter_size = self.volume_size
+        if self.cost_vol_type == "full":
+            # full disparity = 16x3 = 48
+            iter_size = int(self.volume_size*3)
+        elif self.cost_vol_type == "voxel":
+            iter_size = len(voxel_cost_vol) + 1
+
+        volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
+
+        for i in range(iter_size):
             if i > 0:
-                x = interweave_tensors(featL[:, :, :, i:], featR[:, :, :, :-i])
+                if self.cost_vol_type == "even":
+                    j = 3*i
+                elif self.cost_vol_type == "front":
+                    j = int(i + self.volume_size*2)
+                elif self.cost_vol_type == "back":
+                    j = i
+                elif self.cost_vol_type == "full":
+                    j = i
+                elif self.cost_vol_type == "voxel":
+                    j = int(voxel_cost_vol[i-1][0])
+                x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)
                 x = torch.squeeze(x, 2)
                 x = self.volume11(x)
-                volume[:, :, i, :, i:] = x
+                volume[:, :, i, :, j:] = x
             else:
                 x = interweave_tensors(featL, featR)
                 x = torch.unsqueeze(x, 1)

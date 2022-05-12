@@ -34,7 +34,7 @@ parser.add_argument('--dataset', required=True,
 parser.add_argument('--datapath', required=True, help='data path')
 parser.add_argument('--trainlist', required=True, help='training list')
 parser.add_argument('--testlist', required=True, help='testing list')
-parser.add_argument('--lr', type=float, default=1e-5,
+parser.add_argument('--lr', type=float, default=1e-3,
                     help='base learning rate')
 parser.add_argument('--lrepochs', type=str, required=True,
                     help='the epochs to decay lr: the downscale rate')
@@ -61,7 +61,10 @@ parser.add_argument('--loader_workers', type=int, default=4,
 parser.add_argument('--optimizer', type=str, default="adam",
                     help='Choice of optimizer (adam or sgd)',
                     choices=["adam","sgd"])
-
+parser.add_argument('--cost_vol_type', type=str, default="even",
+                    help='Choice of Cost Volume Type',
+                    choices=["even","front","back","full","voxel"])
+parser.add_argument('--log_folder_suffix', type=str, default="")
 
 # parse arguments, set seeds
 args = parser.parse_args()
@@ -73,14 +76,15 @@ def train(config=None):
     def train_sample(sample, compute_metrics=False):
         model.train()
 
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
+        imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
+        if torch.cuda.is_available():
+            imgL = imgL.cuda()
+            imgR = imgR.cuda()
+            voxel_gt = voxel_gt.cuda()
 
         optimizer.zero_grad()
 
-        voxel_ests = model(imgL, imgR)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol)
         loss = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
@@ -90,11 +94,7 @@ def train(config=None):
         if compute_metrics:
             with torch.no_grad():
                 voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-                IoU_list = []
-                for idx, voxel_est in enumerate(voxel_ests):
-                    IoU = calc_IoU(voxel_est, voxel_gt)
-                    IoU_list.append(IoU.cpu().numpy())
-                scalar_outputs["IoU"] = np.mean(IoU_list)
+                scalar_outputs["IoU"] = 1-loss
 
                 left_filename = os.path.join(args.datapath, sample["left_filename"][0])
                 left_img = Image.open(left_filename).convert('RGB')
@@ -111,34 +111,26 @@ def train(config=None):
     def test_sample(sample, compute_metrics=True):
         model.eval()
 
-        imgL, imgR, voxel_gt = sample['left'], sample['right'], sample['voxel_grid']
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-        voxel_gt = voxel_gt.cuda()
+        imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
+        if torch.cuda.is_available():
+            imgL = imgL.cuda()
+            imgR = imgR.cuda()
+            voxel_gt = voxel_gt.cuda()
 
-        voxel_ests = model(imgL, imgR)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol)
         loss = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
         img_outputs = {}
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-        IoU_list = []
-        for idx, voxel_est in enumerate(voxel_ests):
-            IoU = calc_IoU(voxel_est, voxel_gt)
-            IoU_list.append(IoU.cpu().numpy())
-        scalar_outputs["IoU"] = np.mean(IoU_list)
+        scalar_outputs["IoU"] = 1-loss
 
         left_filename = os.path.join(args.datapath, sample["left_filename"][0])
         left_img = Image.open(left_filename).convert('RGB')
         img_outputs["left_img"] = to_tensor(left_img)
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
-
-    # log inside wandb
-    wandb.init(project="voxelDS", entity="nu-team", resume=True)
-    # config = wandb.config
-    log.info(f"wandb config: {config}")
 
     if args.model == 'MSNet2D':
         modelName = '2D-MobileStereoNet'
@@ -149,14 +141,17 @@ def train(config=None):
 
     print("==========================\n", modelName, "\n==========================")
 
-    logdir_prefix = ""
+    logdir_name = ""
     for k, v in config.items():
-        logdir_prefix += str(k)
-        logdir_prefix += '_'
-        logdir_prefix += str(v)
-        logdir_prefix += '_'
+        logdir_name += str(k)
+        logdir_name += '_'
+        logdir_name += str(v)
+        logdir_name += '_'
+
+    if args.log_folder_suffix != "":
+        logdir_name += args.log_folder_suffix
     
-    args.logdir = os.path.join(args.logdir, logdir_prefix) + "/"
+    args.logdir = os.path.join(args.logdir, logdir_name) + "/"
 
     log.info(f"Saving log at directory {args.logdir}")
     os.makedirs(args.logdir, mode=0o770, exist_ok=True)
@@ -169,14 +164,15 @@ def train(config=None):
     train_dataset = StereoDataset(args.datapath, args.trainlist, True)
     test_dataset = StereoDataset(args.datapath, args.testlist, False)
     TrainImgLoader = DataLoader(
-        train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True)
+        train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True, pin_memory=True, persistent_workers=True, prefetch_factor=4)
     TestImgLoader = DataLoader(
-        test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False)
+        test_dataset, args.test_batch_size, shuffle=False, num_workers=args.loader_workers, drop_last=False, pin_memory=True, persistent_workers=True, prefetch_factor=4)
 
     # model, optimizer
-    model = __models__[args.model](args.maxdisp)
+    model = __models__[args.model](args.maxdisp, config["cost_vol_type"])
     model = nn.DataParallel(model)
-    model.cuda()
+    if torch.cuda.is_available():
+        model.cuda()
 
     if config["optimizer"] == "adam":
         optimizer = optim.Adam(model.parameters(), lr=config["lr"], betas=(0.9, 0.999))
@@ -185,16 +181,16 @@ def train(config=None):
     else:
         raise Exception("optimizer choice error!")
 
-    # Transfer learning
-    # model.module.load_mobile_stereo()
 
+    wandb_run_id = wandb.util.generate_id()
     # load parameters
     start_epoch = 0
-    if args.resume or wandb.run.resumed:
+    all_saved_ckpts = [fn for fn in os.listdir(
+        args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
+    if args.resume and len(all_saved_ckpts) > 0:
         # find all checkpoints file and sort according to epoch id
-        all_saved_ckpts = [fn for fn in os.listdir(
-            args.logdir) if fn.endswith(".ckpt") and ("best" not in fn)]
         all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
+        wandb_run_id = all_saved_ckpts[-1].split('_')[0]
         # use the latest checkpoint file
         loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
         log.info("Loading the latest model in logdir: {}".format(loadckpt))
@@ -209,7 +205,20 @@ def train(config=None):
         model.load_state_dict(state_dict['model'])
     log.info("Start at epoch {}".format(start_epoch))
 
-    summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
+    # log inside wandb
+    if args.resume:
+        wandb.init(project="voxelDS", entity="nu-team", id=wandb_run_id, resume=True)
+    else:
+        wandb.init(project="voxelDS", entity="nu-team", id=wandb_run_id)
+
+    # config = wandb.config
+    log.info(f"wandb config: {config}")
+
+    # record cost volume type
+    wandb.log({"cost_vol_type": config["cost_vol_type"]})
+
+    if config["cost_vol_type"] != "voxel":
+        summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
 
     best_checkpoint_loss = 100
     for epoch_idx in range(start_epoch, args.epochs):
@@ -244,15 +253,12 @@ def train(config=None):
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
 
-            # if batch_idx >= 1000:
-            #     break
-
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:
             checkpoint_data = {'epoch': epoch_idx, 'model': model.state_dict(
             ), 'optimizer': optimizer.state_dict()}
             torch.save(
-                checkpoint_data, "{}/checkpoint_{:0>6}.ckpt".format(args.logdir, epoch_idx))
+                checkpoint_data, "{}/{}_checkpoint_{:0>6}.ckpt".format(args.logdir, wandb_run_id, epoch_idx))
         gc.collect()
 
         # testing
@@ -305,5 +311,5 @@ def train(config=None):
 
 if __name__ == '__main__':
     # wandb.agent("lhy0807/stereo_pl_nav-scripts_voxelstereonet/iuzxah19", train)
-    config = {"lr":1e-3, "batch_size":16, "optimizer":"adam"}
+    config = {"lr":args.lr, "batch_size":args.batch_size, "cost_vol_type":args.cost_vol_type, "optimizer":"adam"}
     train(config=config)

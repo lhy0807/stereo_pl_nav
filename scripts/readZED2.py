@@ -31,30 +31,30 @@ def read_calib(calib_file="SN28281527.conf"):
     T[1,0] = float(config["STEREO"]["TY"])
     T[2,0] = float(config["STEREO"]["TZ"])
 
-    left_cam_cx = float(config["LEFT_CAM_VGA"]["cx"])
-    left_cam_cy = float(config["LEFT_CAM_VGA"]["cy"])
-    left_cam_fx = float(config["LEFT_CAM_VGA"]["fx"])
-    left_cam_fy = float(config["LEFT_CAM_VGA"]["fy"])
-    left_cam_k1 = float(config["LEFT_CAM_VGA"]["k1"])
-    left_cam_k2 = float(config["LEFT_CAM_VGA"]["k2"])
-    left_cam_p1 = float(config["LEFT_CAM_VGA"]["p1"])
-    left_cam_p2 = float(config["LEFT_CAM_VGA"]["p2"])
-    left_cam_k3 = float(config["LEFT_CAM_VGA"]["k3"])
+    left_cam_cx = float(config["LEFT_CAM_HD"]["cx"])
+    left_cam_cy = float(config["LEFT_CAM_HD"]["cy"])
+    left_cam_fx = float(config["LEFT_CAM_HD"]["fx"])
+    left_cam_fy = float(config["LEFT_CAM_HD"]["fy"])
+    left_cam_k1 = float(config["LEFT_CAM_HD"]["k1"])
+    left_cam_k2 = float(config["LEFT_CAM_HD"]["k2"])
+    left_cam_p1 = float(config["LEFT_CAM_HD"]["p1"])
+    left_cam_p2 = float(config["LEFT_CAM_HD"]["p2"])
+    left_cam_k3 = float(config["LEFT_CAM_HD"]["k3"])
 
-    right_cam_cx = float(config["RIGHT_CAM_VGA"]["cx"])
-    right_cam_cy = float(config["RIGHT_CAM_VGA"]["cy"])
-    right_cam_fx = float(config["RIGHT_CAM_VGA"]["fx"])
-    right_cam_fy = float(config["RIGHT_CAM_VGA"]["fy"])
-    right_cam_k1 = float(config["RIGHT_CAM_VGA"]["k1"])
-    right_cam_k2 = float(config["RIGHT_CAM_VGA"]["k2"])
-    right_cam_p1 = float(config["RIGHT_CAM_VGA"]["p1"])
-    right_cam_p2 = float(config["RIGHT_CAM_VGA"]["p2"])
-    right_cam_k3 = float(config["RIGHT_CAM_VGA"]["k3"])
+    right_cam_cx = float(config["RIGHT_CAM_HD"]["cx"])
+    right_cam_cy = float(config["RIGHT_CAM_HD"]["cy"])
+    right_cam_fx = float(config["RIGHT_CAM_HD"]["fx"])
+    right_cam_fy = float(config["RIGHT_CAM_HD"]["fy"])
+    right_cam_k1 = float(config["RIGHT_CAM_HD"]["k1"])
+    right_cam_k2 = float(config["RIGHT_CAM_HD"]["k2"])
+    right_cam_p1 = float(config["RIGHT_CAM_HD"]["p1"])
+    right_cam_p2 = float(config["RIGHT_CAM_HD"]["p2"])
+    right_cam_k3 = float(config["RIGHT_CAM_HD"]["k3"])
 
     R_zed = np.zeros((1,3), dtype=float)
-    R_zed[0,0] = float(config["STEREO"]["RX_VGA"])
-    R_zed[0,1] = float(config["STEREO"]["CV_VGA"])
-    R_zed[0,2] = float(config["STEREO"]["RZ_VGA"])
+    R_zed[0,0] = float(config["STEREO"]["RX_HD"])
+    R_zed[0,1] = float(config["STEREO"]["CV_HD"])
+    R_zed[0,2] = float(config["STEREO"]["RZ_HD"])
 
     R,_ = cv2.Rodrigues(R_zed)
 
@@ -86,7 +86,7 @@ def read_calib(calib_file="SN28281527.conf"):
     distCoeffs_right[3,0] = right_cam_p2
     distCoeffs_right[4,0] = right_cam_k3
     
-    image_size = (int(1344/2),376)
+    image_size = (int(2560/2),720)
     R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
 
     map_left_x, map_left_y = cv2.initUndistortRectifyMap(cameraMatrix_left, distCoeffs_left, R1, P1, image_size, cv2.CV_32FC1)
@@ -136,9 +136,9 @@ def main():
 
     # define a video capture object
     vid = cv2.VideoCapture(0)
-    vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1344)
-    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 376)
-    FRAME_WIDTH = int(1344/2)
+    vid.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
+    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    FRAME_WIDTH = int(2560/2)
 
     bridge = CvBridge()
     raw_left_image_pub = rospy.Publisher("/left_cam/image_color", Image, queue_size=10)
