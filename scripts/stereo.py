@@ -1,17 +1,17 @@
 from __future__ import print_function, division
 import os
 import torch.nn as nn
-from mobilestereonet.utils import *
-from mobilestereonet.utils.KittiColormap import *
+from voxelstereonet.models.mobilestereonet.utils import *
+from voxelstereonet.models.mobilestereonet.utils.KittiColormap import *
 import pandas as pd
 from cv_bridge import CvBridge
 import cv2
 import matplotlib.pyplot as plt
-from mobilestereonet.datasets.data_io import get_transform
+from voxelstereonet.models.mobilestereonet.datasets.data_io import get_transform
 import rospy
 from sensor_msgs.msg import Image, CameraInfo
-from mobilestereonet.models.MSNet2D import MSNet2D
-from mobilestereonet.models.MSNet3D import MSNet3D
+from voxelstereonet.models.mobilestereonet.models.MSNet2D import MSNet2D
+from voxelstereonet.models.mobilestereonet.models.MSNet3D import MSNet3D
 import logging
 import coloredlogs
 import time
@@ -25,7 +25,7 @@ class Stereo():
     def listen_image(self, data: Image, side):
         frame = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = frame[24:,...]
+        frame = frame[160:-160,200:-200,:]
         if side == "left":
             self.left_rect = frame
         elif side == "right":
