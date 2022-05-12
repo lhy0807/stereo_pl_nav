@@ -15,10 +15,10 @@ from voxelstereonet.models.mobilestereonet.models.MSNet3D import MSNet3D
 import logging
 import coloredlogs
 import time
-import open3d as o3d
+from std_msgs.msg import Header
+import sensor_msgs.point_cloud2 as pc2
 
-logger = logging.getLogger(__name__)
-coloredlogs.install(level='DEBUG', logger=logger)
+coloredlogs.install(level="DEBUG")
 CURR_DIR = os.path.dirname(__file__)
 
 class Stereo():
@@ -37,16 +37,18 @@ class Stereo():
         self.right_camera_info = data
 
     def load_model(self):
+        rospy.loginfo("start loading model")
         model = MSNet2D(192)
         model = nn.DataParallel(model)
         ckpt_path = os.path.join(CURR_DIR, "models/MSNet2D_SF_DS_KITTI2015.ckpt")
-        logger.info("model {} loaded".format(ckpt_path))
+        rospy.loginfo("model {} loaded".format(ckpt_path))
         state_dict = torch.load(ckpt_path, map_location="cuda")
         model.load_state_dict(state_dict['model'])
         self.model = model
 
     def calc_depth_map(self):
-        if self.model is None or self.right_camera_info is None:
+        if self.model is None or self.right_camera_info is None or self.left_rect is None or self.right_rect is None:
+            rospy.logwarn("something is not ready")
             return
         processed = get_transform()
 
@@ -77,8 +79,8 @@ class Stereo():
                 Output: nx3 points in rect camera coord.
             '''
             n = uv_depth.shape[0]
-            x = ((uv_depth[:, 0] - c_u) * uv_depth[:, 2]) / f_u + b_x
-            y = ((uv_depth[:, 1] - c_v) * uv_depth[:, 2]) / f_v + b_y
+            x = ((uv_depth[:, 0] - c_u) * uv_depth[:, 2]) / f_u + baseline
+            y = ((uv_depth[:, 1] - c_v) * uv_depth[:, 2]) / f_v
             pts_3d_rect = np.zeros((n, 3))
             pts_3d_rect[:, 0] = x
             pts_3d_rect[:, 1] = y
@@ -110,18 +112,45 @@ class Stereo():
             points = np.stack([c, r, depth])
             points = points.reshape((3, -1))
             points = points.T
-            points = points[mask.reshape(-1)]
+            # points = points[mask.reshape(-1)]
             cloud = project_image_to_velo(points)
-            points_rgb = depth_rgb.reshape((3, -1)).T
-            points_rgb = points_rgb.astype(float)
-            points_rgb /= 255.
 
-            rgbd_pcd = o3d.geometry.PointCloud()
-            rgbd_pcd.points = o3d.utility.Vector3dVector(cloud)
-            rgbd_pcd.colors = o3d.utility.Vector3dVector(points_rgb)
+            new_pl = np.zeros((len(cloud), 3))
+            new_pl[:, 0] = cloud[:, 2]
+            new_pl[:, 1] = -cloud[:, 0]
+            new_pl[:, 2] = -cloud[:, 1]
+            cloud = new_pl
+
+            points_rgb = depth_rgb.reshape((3, -1)).T
+            color_pl = points_rgb[:, 0] * 65536 + \
+            points_rgb[:, 1] * 256 + points_rgb[:, 2]
+            color_pl = np.expand_dims(color_pl, axis=-1)
+            color_pl = color_pl.astype(np.uint32)
+
+            # concat to ROS pointcloud foramt
+            concat_pl = np.concatenate((cloud, color_pl), axis=1)
+            points = concat_pl.tolist()
+
+            # TODO: needs to fix this type conversion
+            for i in range(len(points)):
+                points[i][3] = int(points[i][3])
+
+            header = Header()
+            header.stamp = rospy.Time.now()
+            header.frame_id = self.camera_frame
+
+            fields = [PointField('x', 0, PointField.FLOAT32, 1),
+                  PointField('y', 4, PointField.FLOAT32, 1),
+                  PointField('z', 8, PointField.FLOAT32, 1),
+                  PointField('rgb', 12, PointField.UINT32, 1),
+                  ]
+            pc = pc2.create_cloud(header, fields, points)
+
+            self.point_cloud_pub.publish(pc)
             
     def __init__(self) -> None:
         self.bridge = CvBridge()
+        self.camera_frame = "camera_rgb_frame"
         self.left_rect = None
         self.right_rect = None
         self.model = None
@@ -136,16 +165,19 @@ class Stereo():
             "/disp_map", Image, queue_size=1)
         self.depth_image_pub = rospy.Publisher(
             "/depth_map", Image, queue_size=1)
+        self.point_cloud_pub = rospy.Publisher(
+            "/pointcloud", PointCloud2, queue_size=1)
 
         self.load_model()
 
 if __name__ == "__main__":
+    rospy.loginfo("Stereo Node started!")
     rospy.init_node("depth_map_gen")
     stereo = Stereo()
 
     while not rospy.is_shutdown():
         t1 = time.time()
         stereo.calc_depth_map()
-        logger.info(f"Prediction used {round(time.time()-t1,2)}seconds")
+        rospy.loginfo(f"Prediction used {round(time.time()-t1,2)}seconds")
 
     rospy.spin()
