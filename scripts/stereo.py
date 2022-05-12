@@ -9,7 +9,7 @@ import cv2
 import matplotlib.pyplot as plt
 from voxelstereonet.models.mobilestereonet.datasets.data_io import get_transform
 import rospy
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 from voxelstereonet.models.mobilestereonet.models.MSNet2D import MSNet2D
 from voxelstereonet.models.mobilestereonet.models.MSNet3D import MSNet3D
 import logging
