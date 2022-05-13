@@ -5,18 +5,22 @@ from models.Voxel2D import Voxel2D
 import torch
 import torch.nn as nn
 
+voxel_disp = []
+for i in torch.arange(1,15):
+    voxel_disp.append(torch.unsqueeze(i,0))
+
 def input_constructor(input_shape):
     # For Flops-Counter method
     # Notice the input naming
-    inputs = {'L': torch.ones(input_shape), 'R': torch.ones(input_shape)}
+    inputs = {'L': torch.ones(input_shape), 'R': torch.ones(input_shape), 'voxel_cost_vol':voxel_disp}
     return inputs
 
-model = Voxel2D(192,"front")
+model = Voxel2D(192,"even")
 
 input_L = torch.randn(1, 3, 400, 880)
 input_R = torch.randn(1, 3, 400, 880)
 
-macs, params = profile(model, inputs=(input_L, input_R))
+macs, params = profile(model, inputs=(input_L, input_R, voxel_disp))
 macs, params = clever_format([macs, params], "%.3f")
 
 print(f"MACs: {macs}, Params: {params}")

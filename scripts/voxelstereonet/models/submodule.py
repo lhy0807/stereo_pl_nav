@@ -172,60 +172,6 @@ class MobileV2_Residual_3D(nn.Module):
 ###############################################################################
 """ Feature Extraction """
 ###############################################################################
-
-class original_feature_extraction(nn.Module):
-    def __init__(self, add_relus=False):
-        super(original_feature_extraction, self).__init__()
-
-        self.expanse_ratio = 3
-        self.inplanes = 32
-        if add_relus:
-            self.firstconv = nn.Sequential(MobileV2_Residual(3, 32, 2, self.expanse_ratio),
-                                           nn.ReLU(inplace=True),
-                                           MobileV2_Residual(32, 32, 1, self.expanse_ratio),
-                                           nn.ReLU(inplace=True),
-                                           MobileV2_Residual(32, 32, 1, self.expanse_ratio),
-                                           nn.ReLU(inplace=True)
-                                           )
-        else:
-            self.firstconv = nn.Sequential(MobileV2_Residual(3, 32, 2, self.expanse_ratio),
-                                           MobileV2_Residual(32, 32, 1, self.expanse_ratio),
-                                           MobileV2_Residual(32, 32, 1, self.expanse_ratio)
-                                           )
-
-        self.layer1 = self._make_layer(MobileV1_Residual, 32, 3, 1, 1, 1)
-        self.layer2 = self._make_layer(MobileV1_Residual, 64, 16, 2, 1, 1)
-        self.layer3 = self._make_layer(MobileV1_Residual, 128, 3, 1, 1, 1)
-        self.layer4 = self._make_layer(MobileV1_Residual, 128, 3, 1, 1, 2)
-
-    def _make_layer(self, block, planes, blocks, stride, pad, dilation):
-        downsample = None
-
-        if stride != 1 or self.inplanes != planes:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes),
-            )
-
-        layers = [block(self.inplanes, planes, stride, downsample, pad, dilation)]
-        self.inplanes = planes
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, 1, None, pad, dilation))
-
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        x = self.firstconv(x)
-        x = self.layer1(x)
-        l2 = self.layer2(x)
-        l3 = self.layer3(l2)
-        l4 = self.layer4(l3)
-
-        feature_volume = torch.cat((l2, l3, l4), dim=1)
-
-        return feature_volume
-
 class feature_extraction(nn.Module):
     def __init__(self, add_relus=False):
         super(feature_extraction, self).__init__()

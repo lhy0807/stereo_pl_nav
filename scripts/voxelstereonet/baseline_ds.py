@@ -11,15 +11,16 @@ import matplotlib.pyplot as plt
 from datasets.data_io import get_transform, read_all_lines, pfm_imread
 from PIL import Image
 from tqdm import tqdm, trange
-from models.MSNet2D import MSNet2D
-from models.MSNet3D import MSNet3D
+from models.mobilestereonet.models.MSNet2D import MSNet2D
+from models.mobilestereonet.models.MSNet3D import MSNet3D
 from models.Voxel2D import Voxel2D
 from sklearn.metrics import accuracy_score, f1_score
 import coloredlogs, logging
-from datasets import VoxelDSDataset, SceneFlowDataset
+from datasets import VoxelDSDataset
 import torch.nn.functional as F
 import traceback
 from torchmetrics.functional import jaccard_index
+from pytorch3d.loss import chamfer_distance
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
@@ -86,7 +87,7 @@ if __name__ == '__main__':
 
     # result list
     loss_list = []
-    acc_list = []
+    cd_list = []
     iou_list = []
 
     test_dataset = VoxelDSDataset(DATAPATH, DATALIST, training=False)
@@ -154,16 +155,20 @@ if __name__ == '__main__':
                 if cloud_np.shape[0] < 32 or cloud_np_gt.shape[1] < 32:
                     invalid_count += 1
 
+                offsets = np.array([32, 62, 0])
+                xyz_v = np.asarray(np.where(vox_grid_gt == 1)) # get back indexes of populated voxels
+                cloud_np_gt = np.asarray([(pt-offsets)*VOXEL_SIZE for pt in xyz_v.T])
+
                 intersect = vox_grid*vox_grid_gt  # Logical AND
                 union = vox_grid+vox_grid_gt  # Logical OR
 
-                loss = 1 - ((intersect.sum() + 1.0) / (union.sum() - intersect.sum() + 1.0))
                 IoU = ((intersect.sum() + 1.0) / (union.sum() - intersect.sum() + 1.0))
-
-                loss_list.append(loss)
                 iou_list.append(IoU)
 
-                t.set_description(f"Loss is {Average(loss_list)}, IoU is {Average(iou_list)}, Invalid Sample {invalid_count} out of {total_count} @ {round(invalid_count/total_count*100, 2)}%")
+                cd = chamfer_distance(torch.Tensor(np.expand_dims(cloud_np,0)), torch.Tensor(np.expand_dims(cloud_np_gt,0)))[0]
+                cd_list.append(cd)
+
+                t.set_description(f"CD is {Average(cd_list)}, IoU is {Average(iou_list)}, Invalid Sample {invalid_count} out of {total_count} @ {round(invalid_count/total_count*100, 2)}%")
                 t.refresh()
         except Exception as e:
             logger.warning(f"Something bad happended {traceback.format_exc()}")
