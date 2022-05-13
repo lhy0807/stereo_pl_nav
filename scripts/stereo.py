@@ -25,7 +25,7 @@ class Stereo():
     def listen_image(self, data: Image, side):
         frame = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = frame[160:-160,200:-200,:]
+        frame = frame[:-320,:-400,:]
         if side == "left":
             self.left_rect = frame
         elif side == "right":
@@ -66,12 +66,12 @@ class Stereo():
         sample_left = torch.unsqueeze(sample_left, dim=0)
         sample_right = torch.unsqueeze(sample_right, dim=0)
 
-        c_u = self.right_camera_info.P[2]
-        c_v = self.right_camera_info.P[6]
-        f_u = self.right_camera_info.P[0]
-        f_v = self.right_camera_info.P[5]
-        b_x = self.right_camera_info.P[3] / (-f_u)  # relative
-        b_y = self.right_camera_info.P[7] / (-f_v)
+        c_u = self.right_camera_info.K[2]
+        c_v = self.right_camera_info.K[5]
+        f_u = self.right_camera_info.K[0]
+        f_v = self.right_camera_info.K[4]
+        b_x = self.right_camera_info.P[3] / (-self.right_camera_info.P[0])  # relative
+        b_y = self.right_camera_info.P[7] / (-self.right_camera_info.P[5])
 
         def project_image_to_rect(uv_depth):
             ''' Input: nx3 first two channels are uv, 3rd channel
@@ -100,7 +100,7 @@ class Stereo():
                 self.bridge.cv2_to_imgmsg(kitti_colormap(disp_est), "bgr8"))
 
             disp_est[disp_est < 0] = 0
-            baseline = -b_x/1e3
+            baseline = b_x
             mask = disp_est > 0
             depth = f_u * baseline / (disp_est + 1. - mask)
             self.depth_image_pub.publish(
@@ -114,12 +114,6 @@ class Stereo():
             points = points.T
             # points = points[mask.reshape(-1)]
             cloud = project_image_to_velo(points)
-
-            new_pl = np.zeros((len(cloud), 3))
-            new_pl[:, 0] = cloud[:, 2]
-            new_pl[:, 1] = -cloud[:, 0]
-            new_pl[:, 2] = -cloud[:, 1]
-            cloud = new_pl
 
             points_rgb = depth_rgb.reshape((3, -1)).T
             color_pl = points_rgb[:, 0] * 65536 + \
@@ -150,7 +144,7 @@ class Stereo():
             
     def __init__(self) -> None:
         self.bridge = CvBridge()
-        self.camera_frame = "camera_rgb_frame"
+        self.camera_frame = "zed_left"
         self.left_rect = None
         self.right_rect = None
         self.model = None

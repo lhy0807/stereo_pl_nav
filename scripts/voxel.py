@@ -50,7 +50,7 @@ class Stereo():
     def listen_image(self, data: Image, side):
         frame = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = frame[160:-160,200:-200,:]
+        frame = frame[:-320,:-400,:]
         if side == "left":
             self.left_rect = frame
         elif side == "right":
@@ -110,16 +110,31 @@ class Stereo():
             offsets = np.array([32, 62, 0])
             voxel_size = 0.5
             xyz_pred = np.asarray(np.where(vox_pred == 1)) # get back indexes of populated voxels
-            cloud_pred = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
+            cloud = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
 
-            rospy.logdebug(f"Size of point cloud: {len(cloud_pred)}")
-            new_pl = np.zeros((len(cloud_pred), 3))
-            new_pl[:, 0] = cloud_pred[:, 2]
-            new_pl[:, 1] = -cloud_pred[:, 0]
-            new_pl[:, 2] = -cloud_pred[:, 1]
-            cloud = new_pl
+            rospy.logdebug(f"Size of point cloud: {len(cloud)}")
 
-            points_rgb = np.ones((len(cloud_pred), 1))
+            # convert KITTI to ZED2
+            K_c_u = 4.556890e+2
+            K_c_v = 1.976634e+2
+            K_f_u = 1.003556e+3
+            K_f_v = 1.003556e+3
+            K_baseline = 0.54
+            # step1: calculate u,v 
+            uv_depth = np.zeros((len(cloud), 2))
+            for i in range(len(cloud)):
+                uv_depth[i,0] = (cloud[i,0]*K_f_u)/cloud[i,2] + K_c_u
+                uv_depth[i,1] = (cloud[i,1]*K_f_v)/cloud[i,2] + K_c_v
+
+            # step2: generate new cloud using ZED2
+            new_cloud = np.zeros(cloud.shape)
+            new_cloud[:,2] = cloud[:,2] / (1.003556e+3*0.54 / 532.86 / 0.12)
+            new_cloud[:,0] = ((uv_depth[:, 0] - c_u) * new_cloud[:, 2]) / f_u
+            new_cloud[:,1] = ((uv_depth[:, 1] - c_v) * new_cloud[:, 2]) / f_v
+
+            cloud = new_cloud
+
+            points_rgb = np.ones((len(cloud), 1))
             color_pl = points_rgb[:, 0] * 65536 * 255
             color_pl = np.expand_dims(color_pl, axis=-1)
             color_pl = color_pl.astype(np.uint32)
@@ -147,23 +162,19 @@ class Stereo():
             
     def __init__(self) -> None:
         self.bridge = CvBridge()
-        self.camera_frame = "camera_rgb_frame"
+        self.camera_frame = "zed_left"
         self.left_rect = None
         self.right_rect = None
         self.model = None
         self.right_camera_info = None
 
-        rospy.Subscriber("/left_cam/image_rect_color", Image,
+        rospy.Subscriber("/zed2/left/image_rect_color", Image,
                          self.listen_image, "left", queue_size=1, buff_size=2**24)
-        rospy.Subscriber("/right_cam/image_rect_color", Image,
+        rospy.Subscriber("/zed2/right/image_rect_color", Image,
                          self.listen_image, "right", queue_size=1, buff_size=2**24)
-        rospy.Subscriber("/right_cam/camera_info", CameraInfo, self.listen_camera_info, queue_size=10)
-        self.disp_image_pub = rospy.Publisher(
-            "/disp_map", Image, queue_size=1)
-        self.depth_image_pub = rospy.Publisher(
-            "/depth_map", Image, queue_size=1)
+        rospy.Subscriber("/zed2/right/camera_info", CameraInfo, self.listen_camera_info, queue_size=10)
         self.point_cloud_pub = rospy.Publisher(
-            "/pointcloud", PointCloud2, queue_size=1)
+            "/voxels", PointCloud2, queue_size=1)
 
         self.load_model()
 
@@ -172,7 +183,7 @@ class Stereo():
 
 if __name__ == "__main__":
     rospy.loginfo("Stereo Node started!")
-    rospy.init_node("depth_map_gen", log_level=rospy.DEBUG)
+    rospy.init_node("voxel_gen", log_level=rospy.DEBUG)
     stereo = Stereo()
 
     while not rospy.is_shutdown():
