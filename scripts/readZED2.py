@@ -89,12 +89,15 @@ def read_calib(calib_file="SN28281527.conf"):
     image_size = (int(2560/2),720)
     R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
 
+    # change unit
+    P2[0][-1] /= -1000
+
     map_left_x, map_left_y = cv2.initUndistortRectifyMap(cameraMatrix_left, distCoeffs_left, R1, P1, image_size, cv2.CV_32FC1)
     map_right_x, map_right_y = cv2.initUndistortRectifyMap(cameraMatrix_right, distCoeffs_right, R2, P2, image_size, cv2.CV_32FC1)
 
-    logger.info("Undistortion Rectify Map calculation finished.")
-    logger.debug(f"Camera Matrix L: {cameraMatrix_left}")
-    logger.debug(f"Camera Matrix R: {cameraMatrix_right}")
+    rospy.loginfo("Undistortion Rectify Map calculation finished.")
+    rospy.logdebug(f"Camera Matrix L: {cameraMatrix_left}")
+    rospy.logdebug(f"Camera Matrix R: {cameraMatrix_right}")
 
     left_cam_info = CameraInfo()
     left_cam_info.width = image_size[0]
@@ -106,7 +109,7 @@ def read_calib(calib_file="SN28281527.conf"):
     left_cam_info.distortion_model = "plumb_bob"
     left_cam_info.header = Header()
     left_cam_info.header.stamp = rospy.Time.now()
-    left_cam_info.header.frame_id = "zed2_left_frame"
+    left_cam_info.header.frame_id = "zed_left"
 
     right_cam_info = CameraInfo()
     right_cam_info.width = image_size[0]
@@ -118,7 +121,7 @@ def read_calib(calib_file="SN28281527.conf"):
     right_cam_info.distortion_model = "plumb_bob"
     right_cam_info.header = Header()
     right_cam_info.header.stamp = rospy.Time.now()
-    right_cam_info.header.frame_id = "zed2_right_frame"
+    right_cam_info.header.frame_id = "zed_right"
 
     global LEFT_CAMERA_INFO
     global RIGHT_CAMERA_INFO
@@ -127,8 +130,7 @@ def read_calib(calib_file="SN28281527.conf"):
 
     return map_left_x, map_left_y, map_right_x, map_right_y
 
-def main():
-
+def main(namespace=""):
     rate = rospy.Rate(10)
 
     # read ZED2 factory calibration file
@@ -141,12 +143,12 @@ def main():
     FRAME_WIDTH = int(2560/2)
 
     bridge = CvBridge()
-    raw_left_image_pub = rospy.Publisher("/left_cam/image_color", Image, queue_size=10)
-    raw_right_image_pub = rospy.Publisher("/right_cam/image_color", Image, queue_size=10)
-    rect_left_image_pub = rospy.Publisher("/left_cam/image_rect_color", Image, queue_size=10)
-    rect_right_image_pub = rospy.Publisher("/right_cam/image_rect_color", Image, queue_size=10)
-    left_camear_info_pub = rospy.Publisher("/left_cam/camera_info", CameraInfo, queue_size=10)
-    right_camear_info_pub = rospy.Publisher("/right_cam/camera_info", CameraInfo, queue_size=10)
+    raw_left_image_pub = rospy.Publisher(namespace+"left/image_raw", Image, queue_size=10)
+    raw_right_image_pub = rospy.Publisher(namespace+"right/image_raw", Image, queue_size=10)
+    # rect_left_image_pub = rospy.Publisher(namespace+"left/image_rect_color", Image, queue_size=10)
+    # rect_right_image_pub = rospy.Publisher(namespace+"right/image_rect_color", Image, queue_size=10)
+    left_camear_info_pub = rospy.Publisher(namespace+"left/camera_info", CameraInfo, queue_size=10)
+    right_camear_info_pub = rospy.Publisher(namespace+"right/camera_info", CameraInfo, queue_size=10)
     
     while not rospy.is_shutdown():    
         # Capture the video frame
@@ -156,20 +158,22 @@ def main():
         left_frame = frame[:,:FRAME_WIDTH]
         right_frame = frame[:,FRAME_WIDTH:]
 
-        left_rect = cv2.remap(left_frame, map_left_x, map_left_y, cv2.INTER_LINEAR)
-        right_rect = cv2.remap(right_frame, map_right_x, map_right_y, cv2.INTER_LINEAR)
-
-        raw_left_image_pub.publish(bridge.cv2_to_imgmsg(left_frame,"bgr8"))
-        rect_left_image_pub.publish(bridge.cv2_to_imgmsg(left_rect,"bgr8"))
-        raw_right_image_pub.publish(bridge.cv2_to_imgmsg(right_frame,"bgr8"))
-        rect_right_image_pub.publish(bridge.cv2_to_imgmsg(right_rect,"bgr8"))
+        # left_rect = cv2.remap(left_frame, map_left_x, map_left_y, cv2.INTER_LINEAR)
+        # right_rect = cv2.remap(right_frame, map_right_x, map_right_y, cv2.INTER_LINEAR)
+        left_img = bridge.cv2_to_imgmsg(left_frame,"bgr8")
+        raw_left_image_pub.publish(left_img)
+        # rect_left_image_pub.publish(bridge.cv2_to_imgmsg(left_rect,"bgr8"))
+        right_img = bridge.cv2_to_imgmsg(right_frame,"bgr8")
+        right_img.header.stamp = left_img.header.stamp
+        raw_right_image_pub.publish(right_img)
+        # rect_right_image_pub.publish(bridge.cv2_to_imgmsg(right_rect,"bgr8"))
 
         if LEFT_CAMERA_INFO is not None:
-            LEFT_CAMERA_INFO.header.stamp = rospy.Time.now()
+            LEFT_CAMERA_INFO.header.stamp = left_img.header.stamp
             left_camear_info_pub.publish(LEFT_CAMERA_INFO)
 
         if RIGHT_CAMERA_INFO is not None:
-            RIGHT_CAMERA_INFO.header.stamp = rospy.Time.now()
+            RIGHT_CAMERA_INFO.header.stamp = left_img.header.stamp
             right_camear_info_pub.publish(RIGHT_CAMERA_INFO)
 
         rate.sleep()
@@ -180,7 +184,8 @@ def main():
 
 if __name__ == "__main__":
     try:
-        rospy.init_node("readZED2")
-        main()
+        rospy.init_node("readZED2", log_level=rospy.DEBUG)
+        rospy.loginfo(f"Node Namespace is {rospy.get_namespace()}")
+        main(rospy.get_namespace())
     except rospy.ROSInterruptException:
         pass
