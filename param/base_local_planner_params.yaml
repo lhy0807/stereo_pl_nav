@@ -1,0 +1,19 @@
+TebLocalPlannerROS:
+    # Robot Configuration Parameters
+    max_vel_x: 0.1
+    min_vel_x: 0.01
+    max_vel_y: 0.0
+    min_vel_y: 0.0
+    max_vel_theta: 0.5
+    min_in_place_vel_theta: 0.1
+
+    acc_lim_theta: 0.5
+    acc_lim_x: 0.01
+    acc_lim_y: 0.0
+
+    holonomic_robot: false
+
+    # Goal Tolerance Parameters
+    xy_goal_tolerance: 0.05
+    yaw_goal_tolerance: 0.17
+    latch_xy_goal_tolerance: false

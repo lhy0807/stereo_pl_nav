@@ -40,9 +40,14 @@ class Stereo():
         rospy.loginfo("start loading model")
         model = MSNet2D(192)
         model = nn.DataParallel(model)
+        if torch.cuda.is_available():
+            model.cuda()
         ckpt_path = os.path.join(CURR_DIR, "models/MSNet2D_SF_DS_KITTI2015.ckpt")
         rospy.loginfo("model {} loaded".format(ckpt_path))
-        state_dict = torch.load(ckpt_path, map_location="cuda")
+        if torch.cuda.is_available():
+            state_dict = torch.load(ckpt_path, map_location="cuda")
+        else:
+            state_dict = torch.load(ckpt_path, map_location="cpu")
         model.load_state_dict(state_dict['model'])
         self.model = model
 

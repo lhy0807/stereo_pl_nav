@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="stereo_pl_nav" type="voxel.py" name="voxelnet" output="screen"/>
+    <include file="$(find stereo_pl_nav)/launch/voxel_to_lidar.launch"/>
+</launch>

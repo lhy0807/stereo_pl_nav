@@ -65,10 +65,14 @@ class Stereo():
         rospy.loginfo("start loading model")
         voxel_model = Voxel2D(192, "voxel")
         voxel_model = nn.DataParallel(voxel_model)
-        voxel_model.cuda()
+        if torch.cuda.is_available():
+            voxel_model.cuda()
         ckpt_path = os.path.join(CURR_DIR, "voxelstereonet/logs/lr_0.001_batch_size_16_cost_vol_type_voxel_optimizer_adam_/best.ckpt")
         rospy.loginfo("model {} loaded".format(ckpt_path))
-        state_dict = torch.load(ckpt_path, map_location="cuda")
+        if torch.cuda.is_available():
+            state_dict = torch.load(ckpt_path, map_location="cuda")
+        else:
+            state_dict = torch.load(ckpt_path, map_location="cpu")
         voxel_model.load_state_dict(state_dict['model'])
         rospy.loginfo("model weight loaded")
         self.model = voxel_model
@@ -127,11 +131,14 @@ class Stereo():
                 uv_depth[i,1] = (cloud[i,1]*K_f_v)/cloud[i,2] + K_c_v
 
             # step2: generate new cloud using ZED2
-            new_cloud = np.zeros(cloud.shape)
-            new_cloud[:,2] = cloud[:,2] / (1.003556e+3*0.54 / 532.86 / 0.12)
-            new_cloud[:,0] = ((uv_depth[:, 0] - c_u) * new_cloud[:, 2]) / f_u
-            new_cloud[:,1] = ((uv_depth[:, 1] - c_v) * new_cloud[:, 2]) / f_v
-
+            try:
+                new_cloud = np.zeros(cloud.shape)
+                new_cloud[:,2] = cloud[:,2] / (1.003556e+3*0.54 / 532.86 / 0.12)
+                new_cloud[:,0] = ((uv_depth[:, 0] - c_u) * new_cloud[:, 2]) / f_u
+                new_cloud[:,1] = ((uv_depth[:, 1] - c_v) * new_cloud[:, 2]) / f_v
+            except Exception:
+                rospy.logwarn("No PointCloud detected!")
+                return
             cloud = new_cloud
 
             points_rgb = np.ones((len(cloud), 1))
