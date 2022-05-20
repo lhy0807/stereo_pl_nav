@@ -81,18 +81,14 @@ class Stereo():
         if self.model is None or self.right_camera_info is None or self.left_rect is None or self.right_rect is None:
             rospy.logwarn("something is not ready")
             return
-        processed = get_transform()
 
-        left_depth_rgb = self.left_rect[:, :, :3]
-        depth_rgb = np.transpose(left_depth_rgb, (2, 0, 1))
-
-        sample_left = processed(self.left_rect).numpy()
-        sample_right = processed(self.right_rect).numpy()
-
+        init_time = rospy.Time.now()
         self.model.eval()
 
-        sample_left = torch.Tensor(sample_left)
-        sample_right = torch.Tensor(sample_right)
+        processed = get_transform()
+
+        sample_left = processed(self.left_rect)
+        sample_right = processed(self.right_rect)
 
         sample_left = torch.unsqueeze(sample_left, dim=0)
         sample_right = torch.unsqueeze(sample_right, dim=0)
@@ -155,7 +151,7 @@ class Stereo():
                 points[i][3] = int(points[i][3])
 
             header = Header()
-            header.stamp = rospy.Time.now()
+            header.stamp = init_time
             header.frame_id = self.camera_frame
 
             fields = [PointField('x', 0, PointField.FLOAT32, 1),
@@ -196,6 +192,6 @@ if __name__ == "__main__":
     while not rospy.is_shutdown():
         t1 = time.time()
         stereo.calc_depth_map()
-        rospy.logdebug(f"Prediction used {round(time.time()-t1,2)}seconds")
+        rospy.loginfo(f"Prediction used {round(time.time()-t1,2)}seconds")
 
     rospy.spin()
