@@ -345,7 +345,7 @@ class VoxelDSDataset(Dataset):
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*3):
+        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*4):
             # get respective disparity
             d = self.f_u * self.baseline / z
 

@@ -13,6 +13,7 @@ import rospy
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Header
 
+REVERSE = True
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=logger)
 
@@ -155,18 +156,20 @@ def main(namespace=""):
         # by frame
         _, frame = vid.read()
 
-        left_frame = frame[:,:FRAME_WIDTH]
-        right_frame = frame[:,FRAME_WIDTH:]
+        if not REVERSE:
+            left_frame = frame[:,:FRAME_WIDTH]
+            right_frame = frame[:,FRAME_WIDTH:]
+        else:
+            # camera is upside-down
+            left_frame = cv2.rotate(frame[:,FRAME_WIDTH:], cv2.cv2.ROTATE_180)
+            right_frame = cv2.rotate(frame[:,:FRAME_WIDTH], cv2.cv2.ROTATE_180)
 
-        # left_rect = cv2.remap(left_frame, map_left_x, map_left_y, cv2.INTER_LINEAR)
-        # right_rect = cv2.remap(right_frame, map_right_x, map_right_y, cv2.INTER_LINEAR)
         left_img = bridge.cv2_to_imgmsg(left_frame,"bgr8")
-        raw_left_image_pub.publish(left_img)
-        # rect_left_image_pub.publish(bridge.cv2_to_imgmsg(left_rect,"bgr8"))
         right_img = bridge.cv2_to_imgmsg(right_frame,"bgr8")
+
         right_img.header.stamp = left_img.header.stamp
+        raw_left_image_pub.publish(left_img)
         raw_right_image_pub.publish(right_img)
-        # rect_right_image_pub.publish(bridge.cv2_to_imgmsg(right_rect,"bgr8"))
 
         if LEFT_CAMERA_INFO is not None:
             LEFT_CAMERA_INFO.header.stamp = left_img.header.stamp
