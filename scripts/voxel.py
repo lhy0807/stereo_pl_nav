@@ -76,14 +76,23 @@ class Stereo():
         voxel_model.load_state_dict(state_dict['model'])
         rospy.loginfo("model weight loaded")
         self.model = voxel_model
+        self.model.eval()
 
     def calc_depth_map(self):
-        if self.model is None or self.right_camera_info is None or self.left_rect is None or self.right_rect is None:
-            rospy.logwarn("something is not ready")
+        if self.model is None:
+            rospy.logwarn("model is not ready")
+            return
+        if self.right_camera_info is None:
+            rospy.logwarn("camera info is not ready")
+            return
+        if self.left_rect is None:
+            rospy.logwarn("Left Rect Image is not ready")
+            return
+        if self.right_rect is None:
+            rospy.logwarn("Right Rect Image is not ready")
             return
 
         init_time = rospy.Time.now()
-        self.model.eval()
 
         processed = get_transform()
 
@@ -97,8 +106,6 @@ class Stereo():
         c_v = self.right_camera_info.P[6]
         f_u = self.right_camera_info.P[0]
         f_v = self.right_camera_info.P[5]
-        b_x = self.right_camera_info.P[3] / (-f_u)  # relative
-        b_y = self.right_camera_info.P[7] / (-f_v)
 
         with torch.no_grad():
             vox_pred = self.model(sample_left, sample_right, self.vox_cost_vol_disps)[0][0]
