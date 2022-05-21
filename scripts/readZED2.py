@@ -32,30 +32,30 @@ def read_calib(calib_file="SN28281527.conf"):
     T[1,0] = float(config["STEREO"]["TY"])
     T[2,0] = float(config["STEREO"]["TZ"])
 
-    left_cam_cx = float(config["LEFT_CAM_HD"]["cx"])
-    left_cam_cy = float(config["LEFT_CAM_HD"]["cy"])
-    left_cam_fx = float(config["LEFT_CAM_HD"]["fx"])
-    left_cam_fy = float(config["LEFT_CAM_HD"]["fy"])
-    left_cam_k1 = float(config["LEFT_CAM_HD"]["k1"])
-    left_cam_k2 = float(config["LEFT_CAM_HD"]["k2"])
-    left_cam_p1 = float(config["LEFT_CAM_HD"]["p1"])
-    left_cam_p2 = float(config["LEFT_CAM_HD"]["p2"])
-    left_cam_k3 = float(config["LEFT_CAM_HD"]["k3"])
+    left_cam_cx = float(config["LEFT_CAM_DS"]["cx"])
+    left_cam_cy = float(config["LEFT_CAM_DS"]["cy"])
+    left_cam_fx = float(config["LEFT_CAM_DS"]["fx"])
+    left_cam_fy = float(config["LEFT_CAM_DS"]["fy"])
+    left_cam_k1 = float(config["LEFT_CAM_DS"]["k1"])
+    left_cam_k2 = float(config["LEFT_CAM_DS"]["k2"])
+    left_cam_p1 = float(config["LEFT_CAM_DS"]["p1"])
+    left_cam_p2 = float(config["LEFT_CAM_DS"]["p2"])
+    left_cam_k3 = float(config["LEFT_CAM_DS"]["k3"])
 
-    right_cam_cx = float(config["RIGHT_CAM_HD"]["cx"])
-    right_cam_cy = float(config["RIGHT_CAM_HD"]["cy"])
-    right_cam_fx = float(config["RIGHT_CAM_HD"]["fx"])
-    right_cam_fy = float(config["RIGHT_CAM_HD"]["fy"])
-    right_cam_k1 = float(config["RIGHT_CAM_HD"]["k1"])
-    right_cam_k2 = float(config["RIGHT_CAM_HD"]["k2"])
-    right_cam_p1 = float(config["RIGHT_CAM_HD"]["p1"])
-    right_cam_p2 = float(config["RIGHT_CAM_HD"]["p2"])
-    right_cam_k3 = float(config["RIGHT_CAM_HD"]["k3"])
+    right_cam_cx = float(config["RIGHT_CAM_DS"]["cx"])
+    right_cam_cy = float(config["RIGHT_CAM_DS"]["cy"])
+    right_cam_fx = float(config["RIGHT_CAM_DS"]["fx"])
+    right_cam_fy = float(config["RIGHT_CAM_DS"]["fy"])
+    right_cam_k1 = float(config["RIGHT_CAM_DS"]["k1"])
+    right_cam_k2 = float(config["RIGHT_CAM_DS"]["k2"])
+    right_cam_p1 = float(config["RIGHT_CAM_DS"]["p1"])
+    right_cam_p2 = float(config["RIGHT_CAM_DS"]["p2"])
+    right_cam_k3 = float(config["RIGHT_CAM_DS"]["k3"])
 
     R_zed = np.zeros((1,3), dtype=float)
-    R_zed[0,0] = float(config["STEREO"]["RX_HD"])
-    R_zed[0,1] = float(config["STEREO"]["CV_HD"])
-    R_zed[0,2] = float(config["STEREO"]["RZ_HD"])
+    R_zed[0,0] = float(config["STEREO"]["RX_DS"])
+    R_zed[0,1] = float(config["STEREO"]["CV_DS"])
+    R_zed[0,2] = float(config["STEREO"]["RZ_DS"])
 
     R,_ = cv2.Rodrigues(R_zed)
 
@@ -87,7 +87,8 @@ def read_calib(calib_file="SN28281527.conf"):
     distCoeffs_right[3,0] = right_cam_p2
     distCoeffs_right[4,0] = right_cam_k3
     
-    image_size = (int(2560/2),720)
+    # image_size = (int(2560/2),720)
+    image_size = (880, 495)
     R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
 
     # change unit
@@ -163,6 +164,10 @@ def main(namespace=""):
             # camera is upside-down
             left_frame = cv2.rotate(frame[:,FRAME_WIDTH:], cv2.cv2.ROTATE_180)
             right_frame = cv2.rotate(frame[:,:FRAME_WIDTH], cv2.cv2.ROTATE_180)
+        
+        # resize to DrivingStereo resolution
+        left_frame = cv2.resize(left_frame, None, None, 0.6875, 0.6875, interpolation = cv2.INTER_AREA)
+        right_frame = cv2.resize(right_frame, None, None, 0.6875, 0.6875, interpolation = cv2.INTER_AREA)
 
         left_img = bridge.cv2_to_imgmsg(left_frame,"bgr8")
         right_img = bridge.cv2_to_imgmsg(right_frame,"bgr8")
@@ -173,11 +178,17 @@ def main(namespace=""):
 
         if LEFT_CAMERA_INFO is not None:
             LEFT_CAMERA_INFO.header.stamp = left_img.header.stamp
-            left_camear_info_pub.publish(LEFT_CAMERA_INFO)
+            if not REVERSE:
+                left_camear_info_pub.publish(LEFT_CAMERA_INFO)
+            else:
+                right_camear_info_pub.publish(LEFT_CAMERA_INFO)
 
         if RIGHT_CAMERA_INFO is not None:
             RIGHT_CAMERA_INFO.header.stamp = left_img.header.stamp
-            right_camear_info_pub.publish(RIGHT_CAMERA_INFO)
+            if not REVERSE:
+                right_camear_info_pub.publish(RIGHT_CAMERA_INFO)
+            else:
+                left_camear_info_pub.publish(RIGHT_CAMERA_INFO)
 
         rate.sleep()
 

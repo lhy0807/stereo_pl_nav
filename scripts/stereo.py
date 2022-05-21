@@ -25,7 +25,7 @@ class Stereo():
     def listen_image(self, data: Image, side):
         frame = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = frame[:-320,:-400,:]
+        frame = frame[:-95,:,:]
         if side == "left":
             self.left_rect = frame
         elif side == "right":
