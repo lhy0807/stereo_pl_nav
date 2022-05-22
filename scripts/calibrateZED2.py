@@ -52,7 +52,7 @@ if __name__ == "__main__":
             left_corners = cv2.cornerSubPix(left_gray,left_corners,(11,11),(-1,-1),criteria)
             left_imgpoints.append(left_corners)
 
-            right_corners = cv2.cornerSubPix(left_gray,right_corners,(11,11),(-1,-1),criteria)
+            right_corners = cv2.cornerSubPix(right_gray,right_corners,(11,11),(-1,-1),criteria)
             right_imgpoints.append(right_corners)
 
             # Draw and display the corners
@@ -78,9 +78,6 @@ if __name__ == "__main__":
     right_focal = np.array([[366.34,0,0],[0, 366.47,0],[0,0,1]])
     left_dist = np.array([-0.0538111, 0.0255988, 5.81597e-05, -0.000453786, -0.00971802])
     right_dist = np.array([-0.0531113, 0.0251762, 0.000169659, 3.1518e-05, -0.00977131])
-
-    # ret, K1, D1, K2, D2, R, T, E, F = cv2.stereoCalibrate(objpoints, left_imgpoints, right_imgpoints, left_focal, left_dist,
-    #                                                      right_focal, right_dist, left_gray.shape[::-1], flags=cv2.CALIB_FIX_FOCAL_LENGTH)
 
     ret, K1, D1, K2, D2, R, T, E, F = cv2.stereoCalibrate(objpoints, left_imgpoints, right_imgpoints, None, None,
                                                          None, None, left_gray.shape[::-1])
