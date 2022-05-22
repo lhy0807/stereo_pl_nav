@@ -41,7 +41,7 @@
   <include file="$(find jackal_control)/launch/control.launch" />
 
   <!-- Teleoperation via joystick and rviz interactive markers -->
-  <!-- <include file="$(find jackal_control)/launch/teleop.launch" /> -->
+  <include file="$(find jackal_control)/launch/teleop.launch" />
 
   <!-- Diagnostic Aggregator for robot monitor usage -->
   <node pkg="diagnostic_aggregator" type="aggregator_node" name="diagnostic_aggregator">

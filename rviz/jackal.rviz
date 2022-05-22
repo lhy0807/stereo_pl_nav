@@ -6,8 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Grid1
-        - /TF1
         - /TF1/Frames1
+        - /PointCloud21
         - /MarkerArray3/Namespaces1
         - /MarkerArray5/Namespaces1
         - /MarkerArray6/Namespaces1
@@ -33,7 +33,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -419,7 +419,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -434,7 +434,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: octomap_rviz_plugin/ColorOccupancyGrid
       Enabled: true
       Max. Height Display: 3.4028234663852886e+38
@@ -735,9 +735,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.2747971713542938
+      Pitch: 0.5497968792915344
       Target Frame: firefly/base_link
-      Yaw: 3.017580270767212
+      Yaw: 3.5275814533233643
     Saved:
       - Class: rviz/Orbit
         Distance: 8.194913864135742
