@@ -1,5 +1,4 @@
 # import the opencv library
-from tkinter import RIGHT
 import cv2
 import configparser
 from matplotlib import image
@@ -14,6 +13,7 @@ from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Header
 
 REVERSE = True
+
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=logger)
 
@@ -89,15 +89,13 @@ def read_calib(calib_file="SN28281527.conf"):
     
     # image_size = (int(2560/2),720)
     image_size = (880, 495)
-    R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
-
+    if not REVERSE:
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
+    else:
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_right, distCoeffs_right, cameraMatrix_left, distCoeffs_left, image_size, R, T)
     # change unit
     P2[0][-1] /= -1000
 
-    map_left_x, map_left_y = cv2.initUndistortRectifyMap(cameraMatrix_left, distCoeffs_left, R1, P1, image_size, cv2.CV_32FC1)
-    map_right_x, map_right_y = cv2.initUndistortRectifyMap(cameraMatrix_right, distCoeffs_right, R2, P2, image_size, cv2.CV_32FC1)
-
-    rospy.loginfo("Undistortion Rectify Map calculation finished.")
     rospy.logdebug(f"Camera Matrix L: {cameraMatrix_left}")
     rospy.logdebug(f"Camera Matrix R: {cameraMatrix_right}")
 
@@ -130,25 +128,30 @@ def read_calib(calib_file="SN28281527.conf"):
     LEFT_CAMERA_INFO = left_cam_info
     RIGHT_CAMERA_INFO = right_cam_info
 
-    return map_left_x, map_left_y, map_right_x, map_right_y
-
 def main(namespace=""):
     rate = rospy.Rate(10)
 
     # read ZED2 factory calibration file
-    map_left_x, map_left_y, map_right_x, map_right_y = read_calib()
+    read_calib()
 
     # define a video capture object
-    vid = cv2.VideoCapture(0)
-    vid.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
-    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    frame = None
+    while frame is None:
+        rospy.logwarn("Camera Stream not ready yet!")
+        vid = cv2.VideoCapture(0)
+        vid.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
+        vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        _, frame = vid.read()
+
+        # avoid crazy reading
+        rate.sleep()
+    
+    rospy.logwarn("Camera Stream ready!")
     FRAME_WIDTH = int(2560/2)
 
     bridge = CvBridge()
     raw_left_image_pub = rospy.Publisher(namespace+"left/image_raw", Image, queue_size=10)
     raw_right_image_pub = rospy.Publisher(namespace+"right/image_raw", Image, queue_size=10)
-    # rect_left_image_pub = rospy.Publisher(namespace+"left/image_rect_color", Image, queue_size=10)
-    # rect_right_image_pub = rospy.Publisher(namespace+"right/image_rect_color", Image, queue_size=10)
     left_camear_info_pub = rospy.Publisher(namespace+"left/camera_info", CameraInfo, queue_size=10)
     right_camear_info_pub = rospy.Publisher(namespace+"right/camera_info", CameraInfo, queue_size=10)
     
@@ -165,7 +168,7 @@ def main(namespace=""):
             left_frame = cv2.rotate(frame[:,FRAME_WIDTH:], cv2.cv2.ROTATE_180)
             right_frame = cv2.rotate(frame[:,:FRAME_WIDTH], cv2.cv2.ROTATE_180)
         
-        # resize to DrivingStereo resolution
+        # resize to near DrivingStereo resolution
         left_frame = cv2.resize(left_frame, None, None, 0.6875, 0.6875, interpolation = cv2.INTER_AREA)
         right_frame = cv2.resize(right_frame, None, None, 0.6875, 0.6875, interpolation = cv2.INTER_AREA)
 
