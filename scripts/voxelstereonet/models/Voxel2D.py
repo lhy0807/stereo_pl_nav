@@ -64,7 +64,7 @@ class UNet(nn.Module):
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         elif cost_vol_type == "voxel":
-            self.conv1 = nn.Sequential(nn.Conv2d(11, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+            self.conv1 = nn.Sequential(nn.Conv2d(12, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         else:
             self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
