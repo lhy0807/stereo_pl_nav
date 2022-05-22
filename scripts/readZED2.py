@@ -86,13 +86,18 @@ def read_calib(calib_file="SN28281527.conf"):
     distCoeffs_right[2,0] = right_cam_p1
     distCoeffs_right[3,0] = right_cam_p2
     distCoeffs_right[4,0] = right_cam_k3
+
+    if REVERSE:
+        _tmp_mat = cameraMatrix_left
+        _tmp_dist = distCoeffs_left
+        cameraMatrix_left = cameraMatrix_right
+        distCoeffs_left = distCoeffs_right
+        cameraMatrix_right = _tmp_mat
+        distCoeffs_right = _tmp_dist
     
     # image_size = (int(2560/2),720)
     image_size = (880, 495)
-    if not REVERSE:
-        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
-    else:
-        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_right, distCoeffs_right, cameraMatrix_left, distCoeffs_left, image_size, R, T)
+    R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(cameraMatrix_left, distCoeffs_left, cameraMatrix_right, distCoeffs_right, image_size, R, T)
     # change unit
     P2[0][-1] /= -1000
 
@@ -181,17 +186,11 @@ def main(namespace=""):
 
         if LEFT_CAMERA_INFO is not None:
             LEFT_CAMERA_INFO.header.stamp = left_img.header.stamp
-            if not REVERSE:
-                left_camear_info_pub.publish(LEFT_CAMERA_INFO)
-            else:
-                right_camear_info_pub.publish(LEFT_CAMERA_INFO)
+            left_camear_info_pub.publish(LEFT_CAMERA_INFO)
 
         if RIGHT_CAMERA_INFO is not None:
             RIGHT_CAMERA_INFO.header.stamp = left_img.header.stamp
-            if not REVERSE:
-                right_camear_info_pub.publish(RIGHT_CAMERA_INFO)
-            else:
-                left_camear_info_pub.publish(RIGHT_CAMERA_INFO)
+            right_camear_info_pub.publish(RIGHT_CAMERA_INFO)
 
         rate.sleep()
 
