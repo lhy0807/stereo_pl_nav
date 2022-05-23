@@ -57,6 +57,7 @@ class Stereo():
             self.right_rect = frame
         else:
             raise NotImplementedError()
+        self.image_timestamp = data.header.stamp
 
     def listen_camera_info(self, data: CameraInfo):
         self.right_camera_info = data
@@ -158,7 +159,8 @@ class Stereo():
                 points[i][3] = int(points[i][3])
 
             header = Header()
-            header.stamp = init_time
+            # header.stamp = init_time
+            header.stamp = self.image_timestamp
             header.frame_id = self.camera_frame
 
             fields = [PointField('x', 0, PointField.FLOAT32, 1),
@@ -177,6 +179,8 @@ class Stereo():
         self.right_rect = None
         self.model = None
         self.right_camera_info = None
+
+        self.image_timestamp = None
 
         rospy.Subscriber("/zed2/left/image_rect_color", Image,
                          self.listen_image, "left", queue_size=1, buff_size=2**24)
