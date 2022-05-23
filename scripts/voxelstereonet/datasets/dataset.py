@@ -489,20 +489,20 @@ class VoxelISECDataset(Dataset):
 
         # Camera intrinsics
         # 15mm images have different focals
-        self.c_u = 4.556890e+2
-        self.c_v = 1.976634e+2
-        self.f_u = 1.003556e+3
-        self.f_v = 1.003556e+3
-        self.baseline = 0.54
-        self.voxel_size = 0.5
+        self.c_u = 447.59914779663086
+        self.c_v = 255.83612823486328
+        self.f_u = 365.68
+        self.f_v = 365.68
+        self.baseline = 0.12
+        self.voxel_size = 0.1
         # set the maximum perception depth
-        self.max_depth = 32
+        self.max_depth = 6.4
 
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*4):
+        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*2):
             # get respective disparity
             d = self.f_u * self.baseline / z
 
@@ -525,55 +525,6 @@ class VoxelISECDataset(Dataset):
         else:
             disp_images = [x[2] for x in splits]
             return left_images, right_images, disp_images
-
-    def project_image_to_rect(self, uv_depth):
-        ''' Input: nx3 first two channels are uv, 3rd channel
-                is depth in rect camera coord.
-            Output: nx3 points in rect camera coord.
-        '''
-        n = uv_depth.shape[0]
-        x = ((uv_depth[:, 0] - self.c_u) * uv_depth[:, 2]) / self.f_u + self.baseline
-        y = ((uv_depth[:, 1] - self.c_v) * uv_depth[:, 2]) / self.f_v
-        pts_3d_rect = np.zeros((n, 3))
-        pts_3d_rect[:, 0] = x
-        pts_3d_rect[:, 1] = y
-        pts_3d_rect[:, 2] = uv_depth[:, 2]
-        return pts_3d_rect
-
-    def project_image_to_velo(self, uv_depth):
-        pts_3d_rect = self.project_image_to_rect(uv_depth)
-        return pts_3d_rect
-
-    def calc_cloud(self, disp_est, depth):
-        mask = disp_est > 0
-        rows, cols = depth.shape
-        c, r = np.meshgrid(np.arange(cols), np.arange(rows))
-        points = np.stack([c, r, depth])
-        points = points.reshape((3, -1))
-        points = points.T
-        points = points[mask.reshape(-1)]
-        cloud = self.project_image_to_velo(points)
-        return cloud
-
-    def filter_cloud(self, cloud):
-        min_mask = cloud >= [-16,-31,0.0]
-        max_mask = cloud <= [16,1,self.max_depth]
-        min_mask = min_mask[:, 0] & min_mask[:, 1] & min_mask[:, 2]
-        max_mask = max_mask[:, 0] & max_mask[:, 1] & max_mask[:, 2]
-        filter_mask = min_mask & max_mask
-        filtered_cloud = cloud[filter_mask]
-        return filtered_cloud
-
-    def calc_voxel_grid(self, filtered_cloud, voxel_size):
-        xyz_q = np.floor(np.array(filtered_cloud/voxel_size)).astype(int) # quantized point values, here you will loose precision
-        vox_grid = np.zeros((int(32/voxel_size), int(32/voxel_size), int(32/voxel_size))) #Empty voxel grid
-        offsets = np.array([32, 62, 0])
-        xyz_offset_q = xyz_q+offsets
-        vox_grid[xyz_offset_q[:,0],xyz_offset_q[:,1],xyz_offset_q[:,2]] = 1 # Setting all voxels containitn a points equal to 1
-
-        xyz_v = np.asarray(np.where(vox_grid == 1)) # get back indexes of populated voxels
-        cloud_np = np.asarray([(pt-offsets)*voxel_size for pt in xyz_v.T])
-        return vox_grid, cloud_np
 
     def __len__(self):
         return len(self.left_filenames)
