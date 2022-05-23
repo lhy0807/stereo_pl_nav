@@ -514,6 +514,7 @@ class VoxelISECDataset(Dataset):
         
         self.vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         self.vox_cost_vol_disps = sorted(self.vox_cost_vol_disps)
+        self.vox_cost_vol_disps = self.vox_cost_vol_disps[1:]
 
     def load_path(self, list_filename):
         lines = read_all_lines(list_filename)
