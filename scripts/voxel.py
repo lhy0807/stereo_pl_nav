@@ -21,14 +21,14 @@ CURR_DIR = os.path.dirname(__file__)
 class Stereo():
     def calc_disp(self):
 
-        f_u = 1.003556e+3
-        baseline = 0.54
+        f_u = 365.68
+        baseline = 0.12
 
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(0.5, 32, 0.5*3):
+        for z in np.arange(0.1, 6.4, 0.1*2):
             # get respective disparity
             d = f_u * baseline / z
 
@@ -40,6 +40,7 @@ class Stereo():
 
         vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         vox_cost_vol_disps = sorted(vox_cost_vol_disps)
+        vox_cost_vol_disps = vox_cost_vol_disps[1:]
 
         tmp = []
         for i in vox_cost_vol_disps:
@@ -115,35 +116,12 @@ class Stereo():
             vox_pred[vox_pred < 0.5] = 0
             vox_pred[vox_pred >= 0.5] = 1
             
-            offsets = np.array([32, 62, 0])
-            voxel_size = 0.5
+            offsets = np.array([32, 61, 0])
+            voxel_size = 0.1
             xyz_pred = np.asarray(np.where(vox_pred == 1)) # get back indexes of populated voxels
             cloud = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
 
             rospy.logdebug(f"Size of point cloud: {len(cloud)}")
-
-            # convert KITTI to ZED2
-            K_c_u = 4.556890e+2
-            K_c_v = 1.976634e+2
-            K_f_u = 1.003556e+3
-            K_f_v = 1.003556e+3
-            K_baseline = 0.54
-            # step1: calculate u,v 
-            uv_depth = np.zeros((len(cloud), 2))
-            for i in range(len(cloud)):
-                uv_depth[i,0] = (cloud[i,0]*K_f_u)/cloud[i,2] + K_c_u
-                uv_depth[i,1] = (cloud[i,1]*K_f_v)/cloud[i,2] + K_c_v
-
-            # step2: generate new cloud using ZED2
-            try:
-                new_cloud = np.zeros(cloud.shape)
-                new_cloud[:,2] = cloud[:,2] / (1.003556e+3*0.54 / 532.86 / 0.12)
-                new_cloud[:,0] = ((uv_depth[:, 0] - c_u) * new_cloud[:, 2]) / f_u
-                new_cloud[:,1] = ((uv_depth[:, 1] - c_v) * new_cloud[:, 2]) / f_v
-            except Exception:
-                rospy.logwarn("No PointCloud detected!")
-                return
-            cloud = new_cloud
 
             points_rgb = np.ones((len(cloud), 1))
             color_pl = points_rgb[:, 0] * 65536 * 255
