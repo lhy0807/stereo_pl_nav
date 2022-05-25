@@ -137,8 +137,8 @@ class Stereo():
                 points[i][3] = int(points[i][3])
 
             header = Header()
-            # header.stamp = init_time
-            header.stamp = self.image_timestamp
+            header.stamp = init_time
+            # header.stamp = self.image_timestamp
             header.frame_id = self.camera_frame
 
             fields = [PointField('x', 0, PointField.FLOAT32, 1),
