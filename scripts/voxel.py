@@ -116,7 +116,7 @@ class Stereo():
             vox_pred[vox_pred < 0.5] = 0
             vox_pred[vox_pred >= 0.5] = 1
             
-            offsets = np.array([32, 61, 0])
+            offsets = np.array([32, 63, 0])
             voxel_size = 0.1
             xyz_pred = np.asarray(np.where(vox_pred == 1)) # get back indexes of populated voxels
             cloud = np.asarray([(pt-offsets)*voxel_size for pt in xyz_pred.T])
