@@ -16,14 +16,16 @@ from tensorboardX import SummaryWriter
 from datasets import __datasets__
 from models import __models__, model_loss_train_attn_only, model_loss_train_freeze_attn, model_loss_train, model_loss_test
 from utils import *
+import logging
 from torch.utils.data import DataLoader
 import gc
 # from apex import amp
 import cv2
 import wandb
 
+log = logging.Logger(__name__)
 cudnn.benchmark = True
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 
 parser = argparse.ArgumentParser(description='Attention Concatenation Volume for Accurate and Efficient Stereo Matching (ACVNet)')
 parser.add_argument('--model', default='acvnet', help='select a model structure', choices=__models__.keys())
@@ -109,7 +111,7 @@ def train():
             if do_summary:
                 wandb.log({"train_EPE": scalar_outputs["EPE"][0], "train_D1":scalar_outputs["D1"][0], "train_loss":loss})
             del scalar_outputs, image_outputs
-            print('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
+            log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                        batch_idx,
                                                                                        len(TrainImgLoader), loss,
                                                                                        time.time() - start_time))
@@ -122,27 +124,27 @@ def train():
             torch.save(checkpoint_data, "{}/checkpoint_{:0>6}.ckpt".format(args.logdir, epoch_idx))
         gc.collect()
 
-        if (epoch_idx) % 1 == 0:
+        # if (epoch_idx) % 1 == 0:
 
-        # # testing
-            avg_test_scalars = AverageMeterDict()
-            for batch_idx, sample in enumerate(TestImgLoader):    
-                global_step = len(TestImgLoader) * epoch_idx + batch_idx
-                start_time = time.time()
-                do_summary = global_step % args.summary_freq == 0
-                loss, scalar_outputs, image_outputs = test_sample(sample, compute_metrics=do_summary)
-                if do_summary:
-                   wandb.log({"test_EPE": scalar_outputs["EPE"][0], "test_D1":scalar_outputs["D1"][0], "test_loss":loss})
-                avg_test_scalars.update(scalar_outputs)
-                del scalar_outputs, image_outputs
-                print('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
-                                                                                         batch_idx,
-                                                                                         len(TestImgLoader), loss,
-                                                                                         time.time() - start_time))
-            avg_test_scalars = avg_test_scalars.mean()
-            wandb.log({"avg_test_loss":avg_test_scalars["loss"]})
-            print("avg_test_scalars", avg_test_scalars)
-            gc.collect()
+        # # # testing
+        #     avg_test_scalars = AverageMeterDict()
+        #     for batch_idx, sample in enumerate(TestImgLoader):    
+        #         global_step = len(TestImgLoader) * epoch_idx + batch_idx
+        #         start_time = time.time()
+        #         do_summary = global_step % args.summary_freq == 0
+        #         loss, scalar_outputs, image_outputs = test_sample(sample, compute_metrics=do_summary)
+        #         if do_summary:
+        #            wandb.log({"test_EPE": scalar_outputs["EPE"][0], "test_D1":scalar_outputs["D1"][0], "test_loss":loss})
+        #         avg_test_scalars.update(scalar_outputs)
+        #         del scalar_outputs, image_outputs
+        #         log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, args.epochs,
+        #                                                                                  batch_idx,
+        #                                                                                  len(TestImgLoader), loss,
+        #                                                                                  time.time() - start_time))
+        #     avg_test_scalars = avg_test_scalars.mean()
+        #     wandb.log({"avg_test_loss":avg_test_scalars["loss"]})
+        #     print("avg_test_scalars", avg_test_scalars)
+        #     gc.collect()
 
 
 # train one sample
