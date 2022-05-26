@@ -34,7 +34,6 @@ args = parser.parse_args()
 
 if not args.no_cuda:
     os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 cuda = torch.cuda.is_available()
 
 torch.manual_seed(args.seed)
