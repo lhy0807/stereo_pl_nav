@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --gres=gpu:mi50:8
-#SBATCH --cpus-per-task=64
-#SBATCH --mem=128GB
+#SBATCH --gres=gpu:mi50:4
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=64GB
 #SBATCH --output=HPC_log/myjob.%j.out
 #SBATCH --error=HPC_log/myjob.%j.err
 #SBATCH --mail-type=ALL
@@ -17,7 +17,7 @@ conda activate lhy
 python train.py --dataset voxelisec --datapath /scratch/yw3076/lhy/stereo_pl_nav/datasets/ISEC \
  --trainlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_train.txt \
  --testlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_test.txt \
- --epochs 200 --lrepochs "10,16:2" --logdir /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/logs \
+ --epochs 400 --lrepochs "10,16:2" --logdir /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/logs \
  --batch_size 16 --test_batch_size 16 --summary_freq 1 --loader_workers 8 \
  --cost_vol_type voxel --loadckpt /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/best.ckpt
 
