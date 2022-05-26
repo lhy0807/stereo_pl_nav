@@ -103,14 +103,14 @@ def test(imgL, imgR, disp_true):
     imgL = torch.FloatTensor(imgL)
     imgR = torch.FloatTensor(imgR)
 
-    if args.cuda:
+    if cuda:
         imgL, imgR, disp_true = imgL.cuda(), imgR.cuda(), disp_true.cuda()
 
     with torch.no_grad():
-        pred_disp = model(imgL, imgR)
+        pred_disp = model(imgL, imgR, None)
 
-    final_disp = pred_disp.cpu()
-    true_disp = disp_true
+    final_disp = pred_disp.cpu().numpy()
+    true_disp = disp_true.cpu().numpy()
     index = np.argwhere(true_disp > 0)
     disp_true[index[0], index[1], index[2]] = np.abs(
         true_disp[index[0], index[1], index[2]] - final_disp[index[0], index[1], index[2]])
