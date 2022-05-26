@@ -8,22 +8,20 @@ import numpy as np
 import os
 from tqdm import tqdm
 from collections import OrderedDict
-from dataloader import KITTIloader as kt
-from dataloader import KITTI2012loader as kt2012
 from networks.stackhourglass import PSMNet
 import loss_functions as lf
+
+from dataloader import DSloader as ds
 
 
 parser = argparse.ArgumentParser(description='LaC')
 parser.add_argument('--no_cuda', action='store_true', default=False)
 parser.add_argument('--gpu_id', type=str, default='0, 1')
 parser.add_argument('--seed', type=int, default=0)
-parser.add_argument('--batch_size', type=int, default=4)
+parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--epoch', type=int, default=300)
-parser.add_argument('--data_path', type=str, default='/media/data/dataset/KITTI/data_scene_flow/training/')
-parser.add_argument('--KITTI', type=str, default='2015')
-parser.add_argument('--load_path', type=str, default='state_dicts/SceneFlow.pth')
-parser.add_argument('--save_path', type=str, default='finetuned_KITTI/')
+parser.add_argument('--load_path', type=str, default='kitti2015.pth')
+parser.add_argument('--save_path', type=str, default='logs/lacgwcnet')
 parser.add_argument('--max_disp', type=int, default=192)
 parser.add_argument('--lsp_width', type=int, default=3)
 parser.add_argument('--lsp_height', type=int, default=3)
@@ -43,18 +41,16 @@ torch.manual_seed(args.seed)
 if cuda:
     torch.cuda.manual_seed(args.seed)
 
-if args.KITTI == '2015':
-    all_limg, all_rimg, all_ldisp, test_limg, test_rimg, test_ldisp = kt.kt_loader(args.data_path)
-else:
-    all_limg, all_rimg, all_ldisp, test_limg, test_rimg, test_ldisp = kt.kt2012_loader(args.data_path)
-
+datapath = "/home/chris/pl_ws/src/stereo_pl_nav/datasets/DS"
+trainlist = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt"
+testlist = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt"
 
 trainLoader = torch.utils.data.DataLoader(
-    kt.myDataset(all_limg, all_rimg, all_ldisp, training=True),
+    ds.DrivingStereoDataset(datapath, trainlist, True),
     batch_size=args.batch_size, shuffle=True, num_workers=4, drop_last=False)
 
 testLoader = torch.utils.data.DataLoader(
-    kt.myDataset(test_limg, test_rimg, test_ldisp, training=False),
+    ds.DrivingStereoDataset(datapath, testlist, False),
     batch_size=1, shuffle=False, num_workers=2, drop_last=False)
 
 affinity_settings = {}
@@ -143,21 +139,27 @@ def main():
         print('This is %d-th epoch' % epoch)
         total_train_loss = 0
         total_test_loss = 0
-        adjust_learning_rate(optimizer, epoch)
+        # adjust_learning_rate(optimizer, epoch)
 
-        for batch_id, (imgL, imgR, disp_L) in enumerate(tqdm(trainLoader)):
+        for batch_id, batch in enumerate(tqdm(trainLoader)):
+            imgL = batch['left']
+            imgR = batch['right']
+            disp_L = batch['disparity']
             train_loss = train(imgL, imgR, disp_L)
             total_train_loss += train_loss
         avg_train_loss = total_train_loss / len(trainLoader)
         print('Epoch %d average training loss = %.3f' % (epoch, avg_train_loss))
 
-        for batch_id, (imgL, imgR, disp_L) in enumerate(tqdm(testLoader)):
+        for batch_id, batch in enumerate(tqdm(testLoader)):
+            imgL = batch['left']
+            imgR = batch['right']
+            disp_L = batch['disparity']
             test_loss = test(imgL, imgR, disp_L)
             total_test_loss += test_loss
         avg_test_loss = total_test_loss / len(testLoader)
         print('Epoch %d total test loss = %.3f' % (epoch, avg_test_loss))
 
-        if epoch % 50 == 0:
+        if epoch % 1 == 0:
             state = {'net': model.state_dict(),
                      'optimizer': optimizer.state_dict(),
                      'epoch': epoch}
