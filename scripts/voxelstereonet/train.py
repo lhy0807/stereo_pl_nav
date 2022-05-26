@@ -96,9 +96,9 @@ def train(config=None):
                 voxel_outputs = [voxel_ests[0], voxel_gt[0]]
                 scalar_outputs["IoU"] = 1-loss
 
-                left_filename = os.path.join(args.datapath, sample["left_filename"][0])
-                left_img = np.load(left_filename)
-                img_outputs["left_img"] = to_tensor(left_img)
+                # left_filename = os.path.join(args.datapath, sample["left_filename"][0])
+                # left_img = np.load(left_filename)
+                # img_outputs["left_img"] = to_tensor(left_img)
 
         loss.backward()
         optimizer.step()
@@ -126,9 +126,9 @@ def train(config=None):
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
         scalar_outputs["IoU"] = 1-loss
 
-        left_filename = os.path.join(args.datapath, sample["left_filename"][0])
-        left_img = np.load(left_filename)
-        img_outputs["left_img"] = to_tensor(left_img)
+        # left_filename = os.path.join(args.datapath, sample["left_filename"][0])
+        # left_img = np.load(left_filename)
+        # img_outputs["left_img"] = to_tensor(left_img)
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
