@@ -138,11 +138,11 @@ def main():
 
     state = {'net': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'epoch': epoch}
+                'epoch': start_epoch}
 
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
-    save_model_path = args.save_path + 'test_{}.tar'.format(epoch)
+    save_model_path = args.save_path + 'test_{}.tar'.format(start_epoch)
     torch.save(state, save_model_path)
 
     for epoch in range(start_epoch, args.epoch + start_epoch):
