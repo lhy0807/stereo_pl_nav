@@ -22,7 +22,7 @@ parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--epoch', type=int, default=300)
 parser.add_argument('--load_path', type=str, default='kitti2015.pth')
-parser.add_argument('--save_path', type=str, default='/work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/logs/lacgwcnet/')
+parser.add_argument('--save_path', type=str, default='')
 parser.add_argument('--max_disp', type=int, default=192)
 parser.add_argument('--lsp_width', type=int, default=3)
 parser.add_argument('--lsp_height', type=int, default=3)
@@ -136,6 +136,15 @@ def main():
 
     start_epoch = 1
 
+    state = {'net': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': epoch}
+
+    if not os.path.exists(args.save_path):
+        os.mkdir(args.save_path)
+    save_model_path = args.save_path + 'test_{}.tar'.format(epoch)
+    torch.save(state, save_model_path)
+
     for epoch in range(start_epoch, args.epoch + start_epoch):
         print('This is %d-th epoch' % epoch)
         total_train_loss = 0
@@ -153,17 +162,6 @@ def main():
         wandb.log({"avg_train_loss": avg_train_loss})
         print('Epoch %d average training loss = %.3f' % (epoch, avg_train_loss))
 
-        for batch_id, batch in enumerate(tqdm(testLoader)):
-            imgL = batch['left']
-            imgR = batch['right']
-            disp_L = batch['disparity']
-            test_loss = test(imgL, imgR, disp_L)
-            total_test_loss += test_loss
-            wandb.log({"test_loss":test_loss})
-        avg_test_loss = total_test_loss / len(testLoader)
-        wandb.log({"avg_test_loss": avg_test_loss})
-        print('Epoch %d total test loss = %.3f' % (epoch, avg_test_loss))
-
         if epoch % 1 == 0:
             state = {'net': model.state_dict(),
                      'optimizer': optimizer.state_dict(),
@@ -173,6 +171,20 @@ def main():
                 os.mkdir(args.save_path)
             save_model_path = args.save_path + 'checkpoint_{}.tar'.format(epoch)
             torch.save(state, save_model_path)
+
+        # for batch_id, batch in enumerate(tqdm(testLoader)):
+        #     imgL = batch['left']
+        #     imgR = batch['right']
+        #     disp_L = batch['disparity']
+        #     try:
+        #         test_loss = test(imgL, imgR, disp_L)
+        #         total_test_loss += test_loss
+        #         wandb.log({"test_loss":test_loss})
+        #     except:
+        #         pass
+        # avg_test_loss = total_test_loss / len(testLoader)
+        # wandb.log({"avg_test_loss": avg_test_loss})
+        # print('Epoch %d total test loss = %.3f' % (epoch, avg_test_loss))
 
         torch.cuda.empty_cache()
 
