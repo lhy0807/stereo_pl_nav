@@ -104,18 +104,18 @@ def test(imgL, imgR, disp_true):
     imgR = torch.FloatTensor(imgR)
 
     if cuda:
-        imgL, imgR, disp_true = imgL.cuda(), imgR.cuda(), disp_true.cuda()
+        imgL, imgR, disp_true = imgL.cuda(), imgR.cuda(), disp_true.cpu().numpy()
 
     with torch.no_grad():
         pred_disp = model(imgL, imgR, None)
 
     final_disp = pred_disp.cpu().numpy()
-    true_disp = disp_true.cpu().numpy()
+    true_disp = disp_true
     index = np.argwhere(true_disp > 0)
-    disp_true[index[0], index[1], index[2]] = np.abs(
-        true_disp[index[0], index[1], index[2]] - final_disp[index[0], index[1], index[2]])
-    correct = (disp_true[index[0], index[1], index[2]] < 3) | \
-              (disp_true[index[0], index[1], index[2]] < true_disp[index[0], index[1], index[2]]*0.05)
+    disp_true[index[:,0], index[:,1], index[:,2]] = np.abs(
+        true_disp[index[:,0], index[:,1], index[:,2]] - final_disp[index[:,0], index[:,1], index[:,2]])
+    correct = (disp_true[index[:,0], index[:,1], index[:,2]] < 3) | \
+              (disp_true[index[:,0], index[:,1], index[:,2]] < true_disp[index[:,0], index[:,1], index[:,2]]*0.05)
 
     torch.cuda.empty_cache()
 
