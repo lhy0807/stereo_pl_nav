@@ -23,9 +23,9 @@ from pytorch3d.loss import chamfer_distance
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
-DATAPATH = "../../datasets/DS"
+DATAPATH = "../../datasets/KITTI_2015"
 # DATAPATH = "/work/riverlab/hongyu/dataset/DS"
-DATALIST = "./filenames/DS_test.txt"
+DATALIST = "./filenames/kitti15_test.txt"
 
 VOXEL_SIZE = 0.5
 BATCH_SIZE = 2
@@ -44,10 +44,10 @@ def Average(lst):
 if __name__ == '__main__':
 
     # load model
-    model = Voxel2D(192, "even")
+    model = Voxel2D(192, "voxel")
     model = nn.DataParallel(model)
     model.cuda()
-    ckpt_path = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/logs/lr_0.001_batch_size_16_cost_vol_type_even_optimizer_adam_/best.ckpt"
+    ckpt_path = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/logs/lr_0.001_batch_size_16_cost_vol_type_oldvoxel_optimizer_adam_/best.ckpt"
     print("Loading model {}".format(ckpt_path))
     state_dict = torch.load(ckpt_path)
     model.load_state_dict(state_dict['model'])
