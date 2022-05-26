@@ -41,9 +41,9 @@ torch.manual_seed(args.seed)
 if cuda:
     torch.cuda.manual_seed(args.seed)
 
-datapath = "/home/chris/pl_ws/src/stereo_pl_nav/datasets/DS"
-trainlist = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt"
-testlist = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt"
+datapath = "/work/riverlab/hongyu/dataset/DS"
+trainlist = "/work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt"
+testlist = "/work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt"
 
 trainLoader = torch.utils.data.DataLoader(
     ds.DrivingStereoDataset(datapath, trainlist, True),
