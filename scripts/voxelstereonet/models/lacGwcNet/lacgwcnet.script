@@ -5,8 +5,8 @@
 #SBATCH --gres=gpu:v100-sxm2:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64GB
-#SBATCH --output=HPC_log/myjob.%j.out
-#SBATCH --error=HPC_log/myjob.%j.err
+#SBATCH --output=myjob.%j.out
+#SBATCH --error=myjob.%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=hongyu@ccs.neu.edu
 
