@@ -17,7 +17,7 @@ conda activate lhy
 python train.py --dataset voxelisec --datapath /scratch/yw3076/lhy/stereo_pl_nav/datasets/ISEC \
  --trainlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_train.txt \
  --testlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_test.txt \
- --epochs 50 --lrepochs "10,16:2" --logdir /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/logs \
+ --epochs 200 --lrepochs "10,16:2" --logdir /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/logs \
  --batch_size 16 --test_batch_size 16 --summary_freq 1 --loader_workers 8 \
  --cost_vol_type voxel --loadckpt /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/best.ckpt
 
