@@ -63,7 +63,7 @@ class UNet(nn.Module):
         if cost_vol_type == "full":
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
-        elif cost_vol_type == "voxel":
+        elif cost_vol_type == "voxel" or cost_vol_type == "eveneven":
             self.conv1 = nn.Sequential(nn.Conv2d(12, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         else:
@@ -201,6 +201,8 @@ class Voxel2D(nn.Module):
         if self.cost_vol_type == "full":
             # full disparity = 16x3 = 48
             iter_size = int(self.volume_size*2)
+        elif self.cost_vol_type == "eveneven":
+            iter_size = int(self.volume_size/2)
         elif self.cost_vol_type == "voxel":
             iter_size = len(voxel_cost_vol) + 1
 
@@ -210,6 +212,8 @@ class Voxel2D(nn.Module):
             if i > 0:
                 if self.cost_vol_type == "even":
                     j = 2*i
+                elif self.cost_vol_type == "eveneven":
+                    j = 4*i
                 elif self.cost_vol_type == "front":
                     j = int(i + self.volume_size*2)
                 elif self.cost_vol_type == "back":
