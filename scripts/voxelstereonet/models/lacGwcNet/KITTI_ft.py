@@ -124,7 +124,7 @@ def test(imgL, imgR, disp_true):
 
 
 def adjust_learning_rate(optimizer, epoch):
-    if epoch <= 200:
+    if epoch <= 5:
         lr = 0.001
     else:
         lr = 0.0001
@@ -140,7 +140,7 @@ def main():
         print('This is %d-th epoch' % epoch)
         total_train_loss = 0
         total_test_loss = 0
-        # adjust_learning_rate(optimizer, epoch)
+        adjust_learning_rate(optimizer, epoch)
 
         for batch_id, batch in enumerate(tqdm(trainLoader)):
             imgL = batch['left']
