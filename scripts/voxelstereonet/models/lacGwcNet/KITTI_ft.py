@@ -148,9 +148,9 @@ def main():
             disp_L = batch['disparity']
             train_loss = train(imgL, imgR, disp_L)
             total_train_loss += train_loss
-            wandb.log("train_loss",train_loss)
+            wandb.log({"train_loss":train_loss})
         avg_train_loss = total_train_loss / len(trainLoader)
-        wandb.log("avg_train_loss", avg_train_loss)
+        wandb.log({"avg_train_loss": avg_train_loss})
         print('Epoch %d average training loss = %.3f' % (epoch, avg_train_loss))
 
         for batch_id, batch in enumerate(tqdm(testLoader)):
@@ -159,9 +159,9 @@ def main():
             disp_L = batch['disparity']
             test_loss = test(imgL, imgR, disp_L)
             total_test_loss += test_loss
-            wandb.log("test_loss",test_loss)
+            wandb.log({"test_loss":test_loss})
         avg_test_loss = total_test_loss / len(testLoader)
-        wandb.log("avg_test_loss", avg_test_loss)
+        wandb.log({"avg_test_loss": avg_test_loss})
         print('Epoch %d total test loss = %.3f' % (epoch, avg_test_loss))
 
         if epoch % 1 == 0:
