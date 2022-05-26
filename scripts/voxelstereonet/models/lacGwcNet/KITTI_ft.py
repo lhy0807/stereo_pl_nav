@@ -22,7 +22,7 @@ parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--epoch', type=int, default=300)
 parser.add_argument('--load_path', type=str, default='kitti2015.pth')
-parser.add_argument('--save_path', type=str, default='.')
+parser.add_argument('--save_path', type=str, default='/work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/models/lacGwcNet/')
 parser.add_argument('--max_disp', type=int, default=192)
 parser.add_argument('--lsp_width', type=int, default=3)
 parser.add_argument('--lsp_height', type=int, default=3)
@@ -124,7 +124,7 @@ def test(imgL, imgR, disp_true):
 
 
 def adjust_learning_rate(optimizer, epoch):
-    if epoch <= 5:
+    if epoch <= 1:
         lr = 0.001
     else:
         lr = 0.0001
