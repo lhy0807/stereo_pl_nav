@@ -1,5 +1,6 @@
 import os
 import random
+from turtle import right
 import numpy as np
 from PIL import Image
 import torch
@@ -323,7 +324,7 @@ class VoxelKITTIDataset(Dataset):
 
 class VoxelDSDataset(Dataset):
 
-    def __init__(self, datapath, list_filename, training):
+    def __init__(self, datapath, list_filename, training, transform=True):
         self.datapath = datapath
         self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
         self.training = training
@@ -340,6 +341,7 @@ class VoxelDSDataset(Dataset):
         self.voxel_size = 0.5
         # set the maximum perception depth
         self.max_depth = 32
+        self.transform = transform
 
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
@@ -439,23 +441,29 @@ class VoxelDSDataset(Dataset):
 
         processed = get_transform()
         
-        if w < crop_w:
-            left_img = processed(left_img).numpy()
-            right_img = processed(right_img).numpy()
+        if self.transform:
+            if w < crop_w:
+                left_img = processed(left_img).numpy()
+                right_img = processed(right_img).numpy()
 
-            left_img = np.lib.pad(left_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
-            right_img = np.lib.pad(right_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
-            disparity = np.lib.pad(disparity, ((0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
+                left_img = np.lib.pad(left_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
+                right_img = np.lib.pad(right_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
+                disparity = np.lib.pad(disparity, ((0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
 
-            left_img = torch.Tensor(left_img)
-            right_img = torch.Tensor(right_img)
+                left_img = torch.Tensor(left_img)
+                right_img = torch.Tensor(right_img)
+            else:
+                left_img = left_img.crop((w - crop_w, h - crop_h, w, h))
+                right_img = right_img.crop((w - crop_w, h - crop_h, w, h))
+                disparity = disparity[h - crop_h:h, w - crop_w: w]
+
+                left_img = processed(left_img)
+                right_img = processed(right_img)
         else:
             left_img = left_img.crop((w - crop_w, h - crop_h, w, h))
             right_img = right_img.crop((w - crop_w, h - crop_h, w, h))
-            disparity = disparity[h - crop_h:h, w - crop_w: w]
-
-            left_img = processed(left_img)
-            right_img = processed(right_img)
+            left_img = np.asarray(left_img)
+            right_img = np.asarray(right_img)
 
         # calcualte depth for ground truth disparity map
         mask = disparity > 0
@@ -480,7 +488,7 @@ class VoxelDSDataset(Dataset):
 
 class VoxelISECDataset(Dataset):
 
-    def __init__(self, datapath, list_filename, training):
+    def __init__(self, datapath, list_filename, training, transform=True):
         self.datapath = datapath
         self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
         self.training = training
@@ -497,6 +505,7 @@ class VoxelISECDataset(Dataset):
         self.voxel_size = 0.1
         # set the maximum perception depth
         self.max_depth = 6.4
+        self.transform = transform
 
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
@@ -540,18 +549,19 @@ class VoxelISECDataset(Dataset):
 
         processed = get_transform()
         
-        if w < crop_w:
-            left_img = processed(left_img).numpy()
-            right_img = processed(right_img).numpy()
+        if self.transform:
+            if w < crop_w:
+                left_img = processed(left_img).numpy()
+                right_img = processed(right_img).numpy()
 
-            left_img = np.lib.pad(left_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
-            right_img = np.lib.pad(right_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
+                left_img = np.lib.pad(left_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
+                right_img = np.lib.pad(right_img, ((0, 0), (0, 0), (0, crop_w-w)), mode='constant', constant_values=0)
 
-            left_img = torch.Tensor(left_img)
-            right_img = torch.Tensor(right_img)
-        else:
-            left_img = processed(left_img)
-            right_img = processed(right_img)
+                left_img = torch.Tensor(left_img)
+                right_img = torch.Tensor(right_img)
+            else:
+                left_img = processed(left_img)
+                right_img = processed(right_img)
 
         # calcualte depth for ground truth disparity map
 
