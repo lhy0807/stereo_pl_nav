@@ -21,7 +21,7 @@ parser.add_argument('--gpu_id', type=str, default='0, 1')
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--epoch', type=int, default=300)
-parser.add_argument('--load_path', type=str, default='kitti2015.pth')
+parser.add_argument('--load_path', type=str, default="checkpoint_1.tar")
 parser.add_argument('--save_path', type=str, default='/work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/models/lacGwcNet/')
 parser.add_argument('--max_disp', type=int, default=192)
 parser.add_argument('--lsp_width', type=int, default=3)
@@ -66,10 +66,11 @@ print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in mo
 if cuda:
     model.cuda()
 
-checkpoint = torch.load(args.load_path)
-model.load_state_dict(checkpoint)
-
 optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
+
+checkpoint = torch.load(args.load_path)
+model.load_state_dict(checkpoint["net"])
+optimizer.load_state_dict(checkpoint["optimizer"])
 
 wandb.init(project="DSFineTune", entity="nu-team")
 
@@ -134,7 +135,8 @@ def adjust_learning_rate(optimizer, epoch):
 
 def main():
 
-    start_epoch = 1
+    start_epoch = checkpoint["epoch"] + 1
+    print(f"Starting from epoch {start_epoch}")
 
     state = {'net': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
@@ -145,7 +147,7 @@ def main():
     save_model_path = args.save_path + 'test_{}.tar'.format(start_epoch)
     torch.save(state, save_model_path)
 
-    for epoch in range(start_epoch, args.epoch + start_epoch):
+    for epoch in range(start_epoch, args.epoch):
         print('This is %d-th epoch' % epoch)
         total_train_loss = 0
         total_test_loss = 0
