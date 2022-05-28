@@ -7,7 +7,7 @@ import torch.utils.data
 from collections import OrderedDict
 from torch import reshape
 import torch.nn.functional as F
-from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, disparity_regression
+from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, groupwise_correlation
 
 
 class hourglass2D(nn.Module):
@@ -60,7 +60,7 @@ class UNet(nn.Module):
     def __init__(self, cost_vol_type) -> None:
         super(UNet, self).__init__()
         # 48x128x240 => 64x64x128
-        if cost_vol_type == "full":
+        if cost_vol_type == "full" or cost_vol_type == "gwc":
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         elif cost_vol_type == "voxel" or cost_vol_type == "eveneven":
@@ -187,6 +187,8 @@ class Voxel2D(nn.Module):
                 m.bias.data.zero_()
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
+        
+        self.gwc_conv3d = nn.Conv3d(4, 1, 1, 1)
 
     def forward(self, L, R, voxel_cost_vol=[0]):
         features_L = self.feature_extraction(L)
@@ -197,16 +199,23 @@ class Voxel2D(nn.Module):
 
         B, C, H, W = featL.shape
 
+        # default even = 24
         iter_size = self.volume_size
+        
         if self.cost_vol_type == "full":
-            # full disparity = 16x3 = 48
+            # full disparity = 24x2 = 48
             iter_size = int(self.volume_size*2)
         elif self.cost_vol_type == "eveneven":
+            # eveneven = 24/2 = 12
             iter_size = int(self.volume_size/2)
         elif self.cost_vol_type == "voxel":
+            # voxel  = 11+1 = 12
             iter_size = len(voxel_cost_vol) + 1
 
         volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
+        
+        if self.cost_vol_type == "gwc":
+            volume = featL.new_zeros([B, 4, 48, H, W])
 
         for i in range(iter_size):
             if i > 0:
@@ -222,6 +231,9 @@ class Voxel2D(nn.Module):
                     j = i
                 elif self.cost_vol_type == "voxel":
                     j = int(voxel_cost_vol[i-1][0])
+                elif self.cost_vol_type == "gwc":
+                    volume[:, :, i, :, i:] = groupwise_correlation(featL[:, :, :, i:], featR[:, :, :, :-i], 4)
+                    continue
                 x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)
@@ -229,6 +241,9 @@ class Voxel2D(nn.Module):
                 x = self.volume11(x)
                 volume[:, :, i, :, j:] = x
             else:
+                if self.cost_vol_type == "gwc":
+                    volume[:, :, i, :, :] = groupwise_correlation(featL, featR, 4)
+                    continue
                 x = interweave_tensors(featL, featR)
                 x = torch.unsqueeze(x, 1)
                 x = self.conv3d(x)
@@ -238,6 +253,10 @@ class Voxel2D(nn.Module):
 
         volume = volume.contiguous()
         volume = torch.squeeze(volume, 1)
+
+        if self.cost_vol_type == "gwc":
+            volume = self.gwc_conv3d(volume)
+            volume = torch.squeeze(volume, 1)
 
         out = self.encoder_decoder(volume)
         return [out]
