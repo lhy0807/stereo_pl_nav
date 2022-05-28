@@ -80,7 +80,7 @@ if __name__ == '__main__':
     model = MSNet3D(192)
     model = nn.DataParallel(model)
     model.cuda()
-    ckpt_path = "../models/MSNet3D_SF_DS_KITTI2015.ckpt"
+    ckpt_path = "../models/MSNet3D_SF_DS.ckpt"
     print("Loading model {}".format(ckpt_path))
     state_dict = torch.load(ckpt_path)
     model.load_state_dict(state_dict['model'])
