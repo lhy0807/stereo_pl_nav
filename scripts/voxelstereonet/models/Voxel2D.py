@@ -188,7 +188,8 @@ class Voxel2D(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
         
-        self.gwc_conv3d = nn.Conv3d(4, 1, 1, 1)
+        if self.cost_vol_type == "gwc":
+            self.gwc_conv3d = nn.Conv3d(4, 1, 1, 1)
 
     def forward(self, L, R, voxel_cost_vol=[0]):
         features_L = self.feature_extraction(L)
