@@ -63,7 +63,7 @@ parser.add_argument('--optimizer', type=str, default="adam",
                     choices=["adam","sgd"])
 parser.add_argument('--cost_vol_type', type=str, default="even",
                     help='Choice of Cost Volume Type',
-                    choices=["even","eveneven","full","voxel","gwc"])
+                    choices=["even","eveneven","full","voxel","gwc","gwcvoxel"])
 parser.add_argument('--log_folder_suffix', type=str, default="")
 
 # parse arguments, set seeds
@@ -217,7 +217,7 @@ def train(config=None):
     # record cost volume type
     wandb.log({"cost_vol_type": config["cost_vol_type"]})
 
-    if config["cost_vol_type"] != "voxel":
+    if config["cost_vol_type"] != "voxel" and config["cost_vol_type"] != "gwcvoxel":
         summary(model, [(2, 3, 400, 880), (2, 3, 400, 880)])
 
     best_checkpoint_loss = 100
