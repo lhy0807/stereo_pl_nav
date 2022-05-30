@@ -189,14 +189,18 @@ class Voxel2D(nn.Module):
                 m.bias.data.zero_()
         
         if self.cost_vol_type == "gwc" or self.cost_vol_type == "gwcvoxel":
-            self.gwc_conv3d = nn.Conv3d(4, 1, 1, 1)
+            self.gwc_conv3d = nn.Sequential(nn.Conv3d(40, 20, 1, 1), nn.Conv3d(20,1,1,1))
 
     def forward(self, L, R, voxel_cost_vol=[0]):
         features_L = self.feature_extraction(L)
         features_R = self.feature_extraction(R)
 
-        featL = self.preconv11(features_L)
-        featR = self.preconv11(features_R)
+        if self.cost_vol_type != "gwc" and self.cost_vol_type != "gwcvoxel":
+            featL = self.preconv11(features_L)
+            featR = self.preconv11(features_R)
+        else:
+            featL = features_L
+            featR = features_R
 
         B, C, H, W = featL.shape
 
@@ -216,9 +220,9 @@ class Voxel2D(nn.Module):
         volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
         
         if self.cost_vol_type == "gwc":
-            volume = featL.new_zeros([B, 4, 48, H, W])
+            volume = featL.new_zeros([B, 40, 48, H, W])
         if self.cost_vol_type == "gwcvoxel":
-            volume = featL.new_zeros([B, 4, 12, H, W])
+            volume = featL.new_zeros([B, 40, 12, H, W])
 
         for i in range(iter_size):
             if i > 0:
@@ -235,11 +239,11 @@ class Voxel2D(nn.Module):
                 elif self.cost_vol_type == "voxel":
                     j = int(voxel_cost_vol[i-1][0])
                 elif self.cost_vol_type == "gwc":
-                    volume[:, :, i, :, i:] = groupwise_correlation(featL[:, :, :, i:], featR[:, :, :, :-i], 4)
+                    volume[:, :, i, :, i:] = groupwise_correlation(featL[:, :, :, i:], featR[:, :, :, :-i], 40)
                     continue
                 elif self.cost_vol_type == "gwcvoxel":
                     j = int(voxel_cost_vol[i-1][0])
-                    volume[:, :, i, :, j:] = groupwise_correlation(featL[:, :, :, j:], featR[:, :, :, :-j], 4)
+                    volume[:, :, i, :, j:] = groupwise_correlation(featL[:, :, :, j:], featR[:, :, :, :-j], 40)
                     continue
                 x = interweave_tensors(featL[:, :, :, j:], featR[:, :, :, :-j])
                 x = torch.unsqueeze(x, 1)
@@ -249,7 +253,7 @@ class Voxel2D(nn.Module):
                 volume[:, :, i, :, j:] = x
             else:
                 if self.cost_vol_type == "gwc" or self.cost_vol_type == "gwcvoxel":
-                    volume[:, :, i, :, :] = groupwise_correlation(featL, featR, 4)
+                    volume[:, :, i, :, :] = groupwise_correlation(featL, featR, 40)
                     continue
 
                 x = interweave_tensors(featL, featR)
