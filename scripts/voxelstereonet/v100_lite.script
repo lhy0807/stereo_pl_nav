@@ -19,4 +19,4 @@ python train.py --dataset voxelds --datapath /work/riverlab/hongyu/dataset/DS \
  --testlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt \
  --epochs 20 --lrepochs "10,16:2" --logdir /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/logs \
  --batch_size 32 --test_batch_size 32 --summary_freq 50 --loader_workers 16 \
- --cost_vol_type eveneven --model Voxel2D_lite
+ --cost_vol_type eveneven --model Voxel2D_lite --log_folder_suffix lite
