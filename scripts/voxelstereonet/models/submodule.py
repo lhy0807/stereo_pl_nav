@@ -92,7 +92,7 @@ class MobileV2_Residual(nn.Module):
     def __init__(self, inp, oup, stride, expanse_ratio, dilation=1):
         super(MobileV2_Residual, self).__init__()
         self.stride = stride
-        assert stride in [1, 2]
+        assert stride in [1, 2, 4]
 
         hidden_dim = int(inp * expanse_ratio)
         self.use_res_connect = self.stride == 1 and inp == oup

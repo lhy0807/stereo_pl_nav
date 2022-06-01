@@ -63,7 +63,7 @@ parser.add_argument('--optimizer', type=str, default="adam",
                     choices=["adam","sgd"])
 parser.add_argument('--cost_vol_type', type=str, default="even",
                     help='Choice of Cost Volume Type',
-                    choices=["even","eveneven","full","voxel","gwc","gwcvoxel"])
+                    choices=["even","eveneven","full","voxel","gwc","gwcvoxel","voxellite"])
 parser.add_argument('--log_folder_suffix', type=str, default="")
 
 # parse arguments, set seeds
@@ -137,7 +137,9 @@ def train(config=None):
     elif args.model == 'MSNet3D':
         modelName = '3D-MobileStereoNet'
     elif args.model == "Voxel2D":
-        modelName = '2D-MobileVoxelNet'
+        modelName = '2D-StereoVoxelNet'
+    elif args.model == "Voxel2D_lite":
+        modelName = '2D-StereoVoxelNet-Lite'
 
     print("==========================\n", modelName, "\n==========================")
 
@@ -161,8 +163,8 @@ def train(config=None):
 
     # dataset, dataloader
     StereoDataset = __datasets__[args.dataset]
-    train_dataset = StereoDataset(args.datapath, args.trainlist, True)
-    test_dataset = StereoDataset(args.datapath, args.testlist, False)
+    train_dataset = StereoDataset(args.datapath, args.trainlist, True, True, True)
+    test_dataset = StereoDataset(args.datapath, args.testlist, False, True, True)
     TrainImgLoader = DataLoader(
         train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True, pin_memory=True, persistent_workers=True, prefetch_factor=4)
     TestImgLoader = DataLoader(
@@ -207,9 +209,9 @@ def train(config=None):
 
     # log inside wandb
     if args.resume:
-        wandb.init(project="voxelDS", entity="nu-team", id=wandb_run_id, resume=True)
+        wandb.init(project="voxelDSLite", entity="nu-team", id=wandb_run_id, resume=True)
     else:
-        wandb.init(project="voxelDS", entity="nu-team", id=wandb_run_id)
+        wandb.init(project="voxelDSLite", entity="nu-team", id=wandb_run_id)
 
     # config = wandb.config
     log.info(f"wandb config: {config}")
