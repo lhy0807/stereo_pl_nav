@@ -11,13 +11,13 @@ import matplotlib.pyplot as plt
 from datasets.data_io import get_transform, read_all_lines, pfm_imread
 from PIL import Image
 from tqdm import tqdm, trange
+from models.ACVNet.models import ACVNet
 import coloredlogs, logging
 from datasets import VoxelDSDataset
 import torch.nn.functional as F
 import traceback
 from ruamel.yaml import YAML
 from pytorch3d.loss import chamfer_distance
-from models.CFNet.models import CFNet
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
@@ -80,7 +80,14 @@ def load_configs(path):
 
 if __name__ == '__main__':
 
-    model = CFNet(192)
+    # load model
+    affinity_settings = {}
+    affinity_settings['win_w'] = 3
+    affinity_settings['win_h'] = 3
+    affinity_settings['dilation'] = [1, 2, 4, 8]
+
+    model = ACVNet(192, False, False)
+
     model = nn.DataParallel(model)
 
     # result list
@@ -91,9 +98,8 @@ if __name__ == '__main__':
     test_dataset = VoxelDSDataset(DATAPATH, DATALIST, training=False)
     TestImgLoader = DataLoader(test_dataset, BATCH_SIZE, shuffle=True, num_workers=4, drop_last=False)
     model.eval()
-    ckpt = torch.load("models/CFNet/finetuning_model")
-    model.load_state_dict(ckpt['model'])
-    model.cuda()
+    ckpt = torch.load("models/ACVNet/pretrained_model/checkpoint_000009.ckpt")
+    model.load_state_dict(ckpt["model"])
     
     total_count = len(TestImgLoader)*BATCH_SIZE
     invalid_count = 0
@@ -108,9 +114,9 @@ if __name__ == '__main__':
 
         # predict disparity map
         with torch.no_grad():
-            disp_est_tn,_,_ = model(left_img[:,:,:384,:864].cuda(), right_img[:,:,:384,:864].cuda())
-            disp_est_tn = disp_est_tn[-1]
+            disp_est_tn = model(left_img.cuda(), right_img.cuda())[0]
             disp_est_np = tensor2numpy(disp_est_tn)
+            # disp_est_np = np.expand_dims(disp_est_np, axis=0)
         try:
             for idx, disp_est in enumerate(disp_est_np):
                 vox_grid_gt  = voxel_grids[idx]

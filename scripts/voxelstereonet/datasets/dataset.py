@@ -511,7 +511,7 @@ class VoxelISECDataset(Dataset):
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*2):
+        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size):
             # get respective disparity
             d = self.f_u * self.baseline / z
 
@@ -523,7 +523,7 @@ class VoxelISECDataset(Dataset):
         
         self.vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         self.vox_cost_vol_disps = sorted(self.vox_cost_vol_disps)
-        self.vox_cost_vol_disps = self.vox_cost_vol_disps[1:]
+        # self.vox_cost_vol_disps = self.vox_cost_vol_disps[1:]
 
     def load_path(self, list_filename):
         lines = read_all_lines(list_filename)

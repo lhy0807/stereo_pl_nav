@@ -64,7 +64,7 @@ class UNet(nn.Module):
             self.conv1 = nn.Sequential(nn.Conv2d(48, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         elif cost_vol_type == "voxel" or cost_vol_type == "eveneven" or cost_vol_type == "gwcvoxel":
-            self.conv1 = nn.Sequential(nn.Conv2d(12, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
+            self.conv1 = nn.Sequential(nn.Conv2d(18, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
                                     nn.ReLU(inplace=True))
         else:
             self.conv1 = nn.Sequential(nn.Conv2d(24, 64, kernel_size=(6, 6), stride=(2, 2), padding=(2, 10)),
@@ -214,7 +214,7 @@ class Voxel2D(nn.Module):
             # eveneven = 24/2 = 12
             iter_size = int(self.volume_size/2)
         elif self.cost_vol_type == "voxel" or self.cost_vol_type == "gwcvoxel":
-            # voxel  = 11+1 = 12
+            # voxel  = 17+1 = 18
             iter_size = len(voxel_cost_vol) + 1
 
         volume = featL.new_zeros([B, self.num_groups, iter_size, H, W])
@@ -222,7 +222,7 @@ class Voxel2D(nn.Module):
         if self.cost_vol_type == "gwc":
             volume = featL.new_zeros([B, 40, 48, H, W])
         if self.cost_vol_type == "gwcvoxel":
-            volume = featL.new_zeros([B, 40, 12, H, W])
+            volume = featL.new_zeros([B, 40, 18, H, W])
 
         for i in range(iter_size):
             if i > 0:
