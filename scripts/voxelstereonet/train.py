@@ -163,8 +163,8 @@ def train(config=None):
 
     # dataset, dataloader
     StereoDataset = __datasets__[args.dataset]
-    train_dataset = StereoDataset(args.datapath, args.trainlist, True, True, True)
-    test_dataset = StereoDataset(args.datapath, args.testlist, False, True, True)
+    train_dataset = StereoDataset(args.datapath, args.trainlist, True, True)
+    test_dataset = StereoDataset(args.datapath, args.testlist, False, True)
     TrainImgLoader = DataLoader(
         train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True, pin_memory=True, persistent_workers=True, prefetch_factor=4)
     TestImgLoader = DataLoader(
