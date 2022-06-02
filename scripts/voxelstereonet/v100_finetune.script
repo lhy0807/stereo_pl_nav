@@ -14,9 +14,9 @@ module load gcc/10.1.0
 . "/shared/centos7/anaconda3/2022.01/etc/profile.d/conda.sh"
 conda activate /scratch/li.hongyu1/torch/
 
-python train.py --dataset voxelds --datapath /work/riverlab/hongyu/dataset/DS \
- --trainlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt \
- --testlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt \
+python train.py --dataset voxelisec --datapath /work/riverlab/hongyu/dataset/ISEC \
+ --trainlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_train.txt \
+ --testlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/ISEC_test.txt \
  --epochs 20 --lrepochs "10,16:2" --logdir /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/logs \
  --batch_size 32 --test_batch_size 32 --summary_freq 50 --loader_workers 16 \
- --cost_vol_type voxel --model Voxel2D_lite --log_folder_suffix lite --loadckpt /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/logs/lr_0.001_batch_size_32_cost_vol_type_voxel_optimizer_adam_lite/best.ckpt
+ --cost_vol_type voxel --model Voxel2D_lite --log_folder_suffix finetune
