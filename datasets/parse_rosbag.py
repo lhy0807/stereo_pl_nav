@@ -1,15 +1,23 @@
-from typing import Counter
-
-from torchmetrics import RetrievalFallOut
 import rospy
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 import numpy as np
 import cv2
-import open3d as o3d
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
 from PIL import Image
+import argparse
+import rosbag
+import os
+
+parser = argparse.ArgumentParser(description='MobileStereoNet')
+parser.add_argument('--bag_file', type=str, default="isec1.bag",
+                    help='Bag file to be parsed')
+parser.add_argument('--skip_num', type=int, default=2,
+                    help='keep 1/N fraction of data')
+parser.add_argument('--dataset_mode', type=str, default="train",
+                    help='Training set or Testing set')
+args = parser.parse_args()
 
 topics = ["/zed2/left/image_rect_color","/zed2/right/image_rect_color","/rslidar_points"]
 
@@ -72,18 +80,18 @@ class Bag:
             if self.skip_counter != 0:
                 self.image_pair = [None, None]
                 return
-            self.skip_counter = 2
+            self.skip_counter = args.skip_num
 
             # save image and voxel grid
-            im_L = Image.fromarray(self.image_pair[0])
-            im_L.save(f"ISEC/ISEC5/left/{self.counter}.png")
-            im_R = Image.fromarray(self.image_pair[1])
-            im_R.save(f"ISEC/ISEC5/right/{self.counter}.png")
-            np.save(f"ISEC/ISEC5/left/{self.counter}.npy", self.image_pair[0])
-            np.save(f"ISEC/ISEC5/right/{self.counter}.npy", self.image_pair[1])
-            np.save(f"ISEC/ISEC5/voxel/{self.counter}.npy", self.rslidar_points)
+            # im_L = Image.fromarray(self.image_pair[0])
+            # im_L.save(f"ISEC/ISEC5/left/{self.counter}.png")
+            # im_R = Image.fromarray(self.image_pair[1])
+            # im_R.save(f"ISEC/ISEC5/right/{self.counter}.png")
+            np.save(f"ISEC/{args.dataset_mode}/left/{args.bag_file}_{self.counter}.npy", self.image_pair[0])
+            np.save(f"ISEC/{args.dataset_mode}/right/{args.bag_file}_{self.counter}.npy", self.image_pair[1])
+            np.save(f"ISEC/{args.dataset_mode}/voxel/{args.bag_file}_{self.counter}.npy", self.rslidar_voxels)
             self.counter += 1
-            print(f"finished processing {self.counter} data")
+            print(f"finished processing {args.bag_file}_{self.counter}.npy data")
 
             self.image_pair = [None, None]
     def listen_pc(self, data:PointCloud2):
@@ -93,7 +101,6 @@ class Bag:
         def xf(p):
             xyz = tuple(np.dot(self.mat44, np.array([p[0], p[1], p[2], 1.0])))[:3]
             return xyz
-
         point_list = [xf(p) for p in pc2.read_points(data)]
         point_np = np.array(point_list)
 
@@ -103,8 +110,8 @@ class Bag:
         filtered_cloud = filter_cloud(point_np)
         vox_grid, cloud_np = calc_voxel_grid(filtered_cloud, 0.1)
         
-        self.rslidar_points = vox_grid
-        # self.pub_pc(cloud_np, data.header.stamp)
+        # self.rslidar_points = point_np
+        self.rslidar_voxels = vox_grid
     
     def pub_pc(self, cloud_np, time):
         points_rgb = np.ones((len(cloud_np), 1))
@@ -134,8 +141,8 @@ class Bag:
         self.point_cloud_pub.publish(pc)
 
     def __init__(self) -> None:
-
         self.rslidar_points = None
+        self.rslidar_voxels = None
         self.image_pair = [None, None]
 
         self.point_cloud_pub = rospy.Publisher(
@@ -143,12 +150,15 @@ class Bag:
         self.mat44 = np.load("mat44.npy")
         self.bridge = CvBridge()
         self.counter = 0
-        self.skip_counter = 2
+        self.skip_counter = args.skip_num
 
 if __name__ == "__main__":
-    import rosbag
+    os.makedirs(f"ISEC/{args.dataset_mode}/left/", exist_ok=True)
+    os.makedirs(f"ISEC/{args.dataset_mode}/right/", exist_ok=True)
+    os.makedirs(f"ISEC/{args.dataset_mode}/voxel/", exist_ok=True)
+
     rospy.init_node("parse_bag")
-    isec = rosbag.Bag('isec5.bag')
+    isec = rosbag.Bag(args.bag_file)
 
     bag = Bag()
 
