@@ -7,7 +7,7 @@ from cv_bridge import CvBridge
 import cv2
 from voxelstereonet.models.mobilestereonet.datasets.data_io import get_transform
 import rospy
-from voxelstereonet.models.Voxel2D import Voxel2D
+from voxelstereonet.models.Voxel2D_lite import Voxel2D
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 import logging
 import coloredlogs
@@ -16,6 +16,7 @@ from std_msgs.msg import Header
 import sensor_msgs.point_cloud2 as pc2
 
 coloredlogs.install(level="DEBUG")
+torch.backends.cudnn.benchmark = True
 CURR_DIR = os.path.dirname(__file__)
 
 class Stereo():
@@ -28,7 +29,7 @@ class Stereo():
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(0.1, 6.4, 0.1*2):
+        for z in np.arange(0.1, 6.4, 0.05):
             # get respective disparity
             d = f_u * baseline / z
 
@@ -36,11 +37,10 @@ class Stereo():
                 continue
 
             # real disparity -> disparity in feature map
-            vox_cost_vol_disp_set.add(round(d/4))
+            vox_cost_vol_disp_set.add(round(d/8))
 
         vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         vox_cost_vol_disps = sorted(vox_cost_vol_disps)
-        vox_cost_vol_disps = vox_cost_vol_disps[1:]
 
         tmp = []
         for i in vox_cost_vol_disps:
@@ -69,7 +69,7 @@ class Stereo():
         voxel_model = nn.DataParallel(voxel_model)
         if torch.cuda.is_available():
             voxel_model.cuda()
-        ckpt_path = os.path.join(CURR_DIR, "voxelstereonet/logs/lr_0.001_batch_size_16_cost_vol_type_voxel_optimizer_adam_/best.ckpt")
+        ckpt_path = os.path.join(CURR_DIR, "voxelstereonet/logs/lr_0.001_batch_size_32_cost_vol_type_voxel_optimizer_adam_finetune/best.ckpt")
         rospy.loginfo("model {} loaded".format(ckpt_path))
         if torch.cuda.is_available():
             state_dict = torch.load(ckpt_path, map_location="cuda")
@@ -123,28 +123,17 @@ class Stereo():
 
             rospy.logdebug(f"Size of point cloud: {len(cloud)}")
 
-            points_rgb = np.ones((len(cloud), 1))
-            color_pl = points_rgb[:, 0] * 65536 * 255
-            color_pl = np.expand_dims(color_pl, axis=-1)
-            color_pl = color_pl.astype(np.uint32)
 
-            # concat to ROS pointcloud foramt
-            concat_pl = np.concatenate((cloud, color_pl), axis=1)
-            points = concat_pl.tolist()
-
-            # TODO: needs to fix this type conversion
-            for i in range(len(points)):
-                points[i][3] = int(points[i][3])
-
+            points = cloud.tolist()
             header = Header()
-            header.stamp = init_time
-            # header.stamp = self.image_timestamp
+            # header.stamp = init_time
+            header.stamp = self.image_timestamp
             header.frame_id = self.camera_frame
 
             fields = [PointField('x', 0, PointField.FLOAT32, 1),
                   PointField('y', 4, PointField.FLOAT32, 1),
                   PointField('z', 8, PointField.FLOAT32, 1),
-                  PointField('rgb', 12, PointField.UINT32, 1),
+                  
                   ]
             pc = pc2.create_cloud(header, fields, points)
 
