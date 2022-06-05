@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from datasets.data_io import get_transform, read_all_lines, pfm_imread
 from PIL import Image
 from tqdm import tqdm, trange
-from models.Voxel2D import Voxel2D
+# from models.Voxel2D import Voxel2D
+from models.Voxel2D_lite import Voxel2D
 from sklearn.metrics import accuracy_score, f1_score
 import coloredlogs, logging
 from datasets import VoxelDSDataset
@@ -44,10 +45,10 @@ def Average(lst):
 if __name__ == '__main__':
 
     # load model
-    model = Voxel2D(192, "gwc")
+    model = Voxel2D(192, "voxel")
     model = nn.DataParallel(model)
     model.cuda()
-    ckpt_path = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/logs/lr_0.001_batch_size_16_cost_vol_type_gwc_optimizer_adam_/best.ckpt"
+    ckpt_path = "/home/chris/pl_ws/src/stereo_pl_nav/scripts/voxelstereonet/logs/lr_0.001_batch_size_32_cost_vol_type_voxel_optimizer_adam_lite/best.ckpt"
     print("Loading model {}".format(ckpt_path))
     state_dict = torch.load(ckpt_path)
     model.load_state_dict(state_dict['model'])
@@ -57,7 +58,7 @@ if __name__ == '__main__':
     cd_list = []
     iou_list = []
 
-    test_dataset = VoxelDSDataset(DATAPATH, DATALIST, training=False)
+    test_dataset = VoxelDSDataset(DATAPATH, DATALIST, training=False, lite=True)
     TestImgLoader = DataLoader(test_dataset, BATCH_SIZE, shuffle=True, num_workers=4, drop_last=False)
     
     model.eval()

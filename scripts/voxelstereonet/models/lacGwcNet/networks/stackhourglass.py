@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import math
 from .submodule import convbn_3d, feature_extraction, DisparityRegression
 from .deformable_refine import DeformableRefine, DeformableRefineF
-import loss_functions as lf
+# import loss_functions as lf
 import sys, pathlib, os
   
 # directory reach
@@ -15,7 +15,7 @@ directory = pathlib.Path(__file__)
   
 # setting path
 sys.path.append(str(directory.parent.parent))
-import loss_functions as tf
+import loss_functions as lf
 import matplotlib.pyplot as plt
 from .refinement import StereoDRNetRefinement
 

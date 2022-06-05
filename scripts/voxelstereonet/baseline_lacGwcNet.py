@@ -99,8 +99,8 @@ if __name__ == '__main__':
     test_dataset = VoxelDSDataset(DATAPATH, DATALIST, training=False)
     TestImgLoader = DataLoader(test_dataset, BATCH_SIZE, shuffle=True, num_workers=4, drop_last=False)
     model.eval()
-    ckpt = torch.load("models/lacGwcNet/kitti2015.pth")
-    model.load_state_dict(ckpt)
+    ckpt = torch.load("models/lacGwcNet/checkpoint_9.tar")
+    model.load_state_dict(ckpt["net"])
     
     total_count = len(TestImgLoader)*BATCH_SIZE
     invalid_count = 0
