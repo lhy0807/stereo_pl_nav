@@ -11,7 +11,7 @@ import rosbag
 import os
 
 parser = argparse.ArgumentParser(description='MobileStereoNet')
-parser.add_argument('--bag_file', type=str, default="isec1.bag",
+parser.add_argument('--bag_file', type=str, required=True,
                     help='Bag file to be parsed')
 parser.add_argument('--skip_num', type=int, default=2,
                     help='keep 1/N fraction of data')
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     os.makedirs(f"ISEC/{args.dataset_mode}/right/", exist_ok=True)
     os.makedirs(f"ISEC/{args.dataset_mode}/voxel/", exist_ok=True)
 
-    rospy.init_node("parse_bag")
+    rospy.init_node(f"{args.bag_file.split('.')[0]}_parse_bag")
     isec = rosbag.Bag(args.bag_file)
 
     bag = Bag()
