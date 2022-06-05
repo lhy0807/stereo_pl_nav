@@ -4,7 +4,6 @@ import gc
 import time
 import argparse
 import torch.nn as nn
-from torchvision.transforms.functional import to_tensor
 import torch.utils.data
 import torch.nn.parallel
 import torch.optim as optim
@@ -50,6 +49,8 @@ parser.add_argument(
     '--loadckpt', help='load the weights from a specific checkpoint')
 parser.add_argument('--resume', action='store_true',
                     help='continue training the model')
+parser.add_argument('--lite', action='store_true',
+                    help='lite model or not')
 parser.add_argument('--seed', type=int, default=1,
                     metavar='S', help='random seed (default: 1)')
 parser.add_argument('--summary_freq', type=int, default=100,
@@ -163,8 +164,8 @@ def train(config=None):
 
     # dataset, dataloader
     StereoDataset = __datasets__[args.dataset]
-    train_dataset = StereoDataset(args.datapath, args.trainlist, True, True)
-    test_dataset = StereoDataset(args.datapath, args.testlist, False, True)
+    train_dataset = StereoDataset(args.datapath, args.trainlist, True, True, args.lite)
+    test_dataset = StereoDataset(args.datapath, args.testlist, False, True, args.lite)
     TrainImgLoader = DataLoader(
         train_dataset, config["batch_size"], shuffle=True, num_workers=args.loader_workers, drop_last=True, pin_memory=True, persistent_workers=True, prefetch_factor=4)
     TestImgLoader = DataLoader(
