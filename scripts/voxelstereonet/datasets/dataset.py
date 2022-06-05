@@ -324,7 +324,7 @@ class VoxelKITTIDataset(Dataset):
 
 class VoxelDSDataset(Dataset):
 
-    def __init__(self, datapath, list_filename, training, transform=True):
+    def __init__(self, datapath, list_filename, training, transform=True, lite=False):
         self.datapath = datapath
         self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
         self.training = training
@@ -347,13 +347,22 @@ class VoxelDSDataset(Dataset):
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size):
-            # get respective disparity
-            d = self.f_u * self.baseline / z
-            if d > max_disp:
-                continue
-            # real disparity -> disparity in feature map
-            vox_cost_vol_disp_set.add(round(d/8))
+        if not lite:
+            for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*2):
+                # get respective disparity
+                d = self.f_u * self.baseline / z
+                if d > max_disp:
+                    continue
+                # real disparity -> disparity in feature map
+                vox_cost_vol_disp_set.add(round(d/4))
+        else:
+            for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size):
+                # get respective disparity
+                d = self.f_u * self.baseline / z
+                if d > max_disp:
+                    continue
+                # real disparity -> disparity in feature map
+                vox_cost_vol_disp_set.add(round(d/8))
         
         self.vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         self.vox_cost_vol_disps = sorted(self.vox_cost_vol_disps)
@@ -486,7 +495,7 @@ class VoxelDSDataset(Dataset):
 
 class VoxelISECDataset(Dataset):
 
-    def __init__(self, datapath, list_filename, training, transform=True):
+    def __init__(self, datapath, list_filename, training, transform=True, lite=False):
         self.datapath = datapath
         self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
         self.training = training
@@ -509,18 +518,31 @@ class VoxelISECDataset(Dataset):
         vox_cost_vol_disp_set = set()
         max_disp = 192
         # depth starting from voxel_size since 0 will cause issue
-        for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size/2):
-            # get respective disparity
-            d = self.f_u * self.baseline / z
+        if not lite:
+            for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size*2):
+                # get respective disparity
+                d = self.f_u * self.baseline / z
 
-            if d > max_disp:
-                continue
-            
-            # real disparity -> disparity in feature map
-            vox_cost_vol_disp_set.add(round(d/8))
+                if d > max_disp:
+                    continue
+                
+                # real disparity -> disparity in feature map
+                vox_cost_vol_disp_set.add(round(d/4))
+        else:
+            for z in np.arange(self.voxel_size, self.max_depth, self.voxel_size/2):
+                # get respective disparity
+                d = self.f_u * self.baseline / z
+
+                if d > max_disp:
+                    continue
+                
+                # real disparity -> disparity in feature map
+                vox_cost_vol_disp_set.add(round(d/8))
         
         self.vox_cost_vol_disps = list(vox_cost_vol_disp_set)
         self.vox_cost_vol_disps = sorted(self.vox_cost_vol_disps)
+        if not lite:
+            self.vox_cost_vol_disps = self.vox_cost_vol_disps[1:]
 
     def load_path(self, list_filename):
         lines = read_all_lines(list_filename)
