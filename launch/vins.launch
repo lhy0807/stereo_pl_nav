@@ -1,0 +1,4 @@
+<launch>
+<node pkg="tf2_ros" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 odom world" />
+<node pkg="vins" type="vins_node" name="vins_node" args="/home/chris/pl_ws/src/stereo_pl_nav/config/zed2_stereo_imu_config.yaml"/>
+</launch>

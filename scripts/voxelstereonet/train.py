@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=log)
 
 parser = argparse.ArgumentParser(description='MobileStereoNet')
-parser.add_argument('--model', default='Voxel2D',
+parser.add_argument('--model', default='Voxel2D_sparse',
                     help='select a model structure', choices=__models__.keys())
 parser.add_argument('--maxdisp', type=int, default=192,
                     help='maximum disparity')
@@ -81,12 +81,13 @@ def train(config=None):
         if torch.cuda.is_available():
             imgL = imgL.cuda()
             imgR = imgR.cuda()
-            voxel_gt = voxel_gt.cuda()
+            for i in range(len(voxel_gt)):
+                voxel_gt[i] = voxel_gt[i].cuda()
 
         optimizer.zero_grad()
 
         voxel_ests = model(imgL, imgR, voxel_cost_vol)
-        loss = model_loss(voxel_ests, voxel_gt)
+        loss, iou = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
@@ -95,7 +96,7 @@ def train(config=None):
         if compute_metrics:
             with torch.no_grad():
                 voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-                scalar_outputs["IoU"] = 1-loss
+                scalar_outputs["IoU"] = iou
 
                 # left_filename = os.path.join(args.datapath, sample["left_filename"][0])
                 # left_img = np.load(left_filename)
@@ -116,16 +117,17 @@ def train(config=None):
         if torch.cuda.is_available():
             imgL = imgL.cuda()
             imgR = imgR.cuda()
-            voxel_gt = voxel_gt.cuda()
+            for i in range(len(voxel_gt)):
+                voxel_gt[i] = voxel_gt[i].cuda()
 
         voxel_ests = model(imgL, imgR, voxel_cost_vol)
-        loss = model_loss(voxel_ests, voxel_gt)
+        loss, iou = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
         img_outputs = {}
         voxel_outputs = [voxel_ests[0], voxel_gt[0]]
-        scalar_outputs["IoU"] = 1-loss
+        scalar_outputs["IoU"] = iou
 
         # left_filename = os.path.join(args.datapath, sample["left_filename"][0])
         # left_img = np.load(left_filename)
@@ -141,6 +143,8 @@ def train(config=None):
         modelName = '2D-StereoVoxelNet'
     elif args.model == "Voxel2D_lite":
         modelName = '2D-StereoVoxelNet-Lite'
+    elif args.model == "Voxel2D_sparse":
+        modelName = '2D-StereoVoxelNet-Sparse'
 
     print("==========================\n", modelName, "\n==========================")
 
@@ -151,6 +155,7 @@ def train(config=None):
         logdir_name += str(v)
         logdir_name += '_'
 
+    logdir_name += args.model + "_"
     if args.log_folder_suffix != "":
         logdir_name += args.log_folder_suffix
     
@@ -210,9 +215,9 @@ def train(config=None):
 
     # log inside wandb
     if args.resume:
-        wandb.init(project="voxelISEC", entity="nu-team", id=wandb_run_id, resume=True)
+        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id, resume=True)
     else:
-        wandb.init(project="voxelISEC", entity="nu-team", id=wandb_run_id)
+        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id)
 
     # config = wandb.config
     log.info(f"wandb config: {config}")
@@ -237,8 +242,8 @@ def train(config=None):
                 sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'train', scalar_outputs, global_step)
-                save_voxel(logger, 'train', voxel_outputs, global_step,
-                           args.logdir, False)
+                # save_voxel(logger, 'train', voxel_outputs, global_step,
+                #            args.logdir, False)
                 save_images(logger, "train", img_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                          batch_idx,
@@ -255,6 +260,7 @@ def train(config=None):
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
+            break
 
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:
@@ -274,8 +280,8 @@ def train(config=None):
                 sample, compute_metrics=do_summary)
             if do_summary:
                 save_scalars(logger, 'test', scalar_outputs, global_step)
-                save_voxel(logger, 'test', voxel_outputs, global_step,
-                           args.logdir, False)
+                # save_voxel(logger, 'test', voxel_outputs, global_step,
+                #            args.logdir, False)
                 save_images(logger, "train", img_outputs, global_step)
                 log.info('Epoch {}/{}, Iter {}/{}, test loss = {:.3f}, IoU = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs,
                                                                                                         batch_idx,
@@ -293,6 +299,7 @@ def train(config=None):
                                                                                          time.time() - start_time))
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs, voxel_outputs, img_outputs
+            break
 
         avg_test_scalars = avg_test_scalars.mean()
 

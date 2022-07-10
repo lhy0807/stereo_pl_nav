@@ -287,7 +287,10 @@ def IoU_loss(pred, gt):
 
 
 def model_loss(voxel_ests, voxel_gt):
+    voxel_ests = voxel_ests[0]
+    # sum of loss of every level
+    # from OGN https://openaccess.thecvf.com/content_ICCV_2017/papers/Tatarchenko_Octree_Generating_Networks_ICCV_2017_paper.pdf
     all_losses = []
-    for voxel_est in voxel_ests:
-        all_losses.append(IoU_loss(voxel_est, voxel_gt))
-    return sum(all_losses)
+    for idx, voxel_est in enumerate(voxel_ests):
+        all_losses.append(IoU_loss(voxel_est, voxel_gt[idx]))
+    return sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
