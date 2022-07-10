@@ -27,7 +27,7 @@ DATAPATH = "../../datasets/DS"
 DATALIST = "./filenames/DS_test.txt"
 
 VOXEL_SIZE = 0.5
-BATCH_SIZE = 1
+BATCH_SIZE = 4
 
 c_u = 4.556890e+2
 c_v = 1.976634e+2

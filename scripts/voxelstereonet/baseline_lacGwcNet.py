@@ -87,7 +87,7 @@ if __name__ == '__main__':
     affinity_settings['dilation'] = [1, 2, 4, 8]
 
     model = PSMNet(maxdisp=192, struct_fea_c=4, fuse_mode="separate",
-               affinity_settings=affinity_settings, udc=True, refine="csr")
+               affinity_settings=affinity_settings, udc=True, refine="csr").cuda()
 
     model = nn.DataParallel(model)
 
