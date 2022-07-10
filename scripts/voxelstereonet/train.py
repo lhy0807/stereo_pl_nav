@@ -260,7 +260,6 @@ def train(config=None):
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
-            break
 
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:
@@ -299,7 +298,6 @@ def train(config=None):
                                                                                          time.time() - start_time))
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs, voxel_outputs, img_outputs
-            break
 
         avg_test_scalars = avg_test_scalars.mean()
 
