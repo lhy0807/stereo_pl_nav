@@ -1,6 +1,7 @@
 # Copyright (c) 2021. All rights reserved.
 from __future__ import print_function
 import math
+from time import sleep
 import torch.nn as nn
 from torch import Tensor
 import torch.utils.data
@@ -8,6 +9,7 @@ from collections import OrderedDict
 from torch import reshape
 import torch.nn.functional as F
 from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, groupwise_correlation
+import spconv.pytorch as spconv
 
 class UNet(nn.Module):
     def __init__(self, cost_vol_type) -> None:
@@ -48,34 +50,34 @@ class UNet(nn.Module):
 
         self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
                                      nn.BatchNorm3d(32),
-                                     nn.ReLU(inplace=True),
+                                     nn.ReLU(),
                                      nn.Conv3d(32, 32, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(32),
-                                     nn.ReLU(inplace=True))
+                                     nn.ReLU())
 
         self.deconv2_out = nn.Sequential(nn.Conv3d(32, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
-                                     nn.BatchNorm3d(16),
-                                     nn.ReLU(inplace=True),
-                                     nn.Conv3d(16, 16, kernel_size=2, bias=False),
-                                     nn.BatchNorm3d(16),
-                                     nn.ReLU(inplace=True))
-        self.deconv3_out = nn.Sequential(nn.Conv3d(16, 1, kernel_size=1, bias=False),
+        self.deconv3 = spconv.SparseSequential(spconv.SparseConvTranspose3d(32, 16, kernel_size=5, stride=2, padding=1, bias=False),
+                                     nn.BatchNorm1d(16),
+                                     nn.ReLU(),
+                                     spconv.SparseConv3d(16,16,kernel_size=2, bias=False),
+                                     nn.BatchNorm1d(16),
+                                     nn.ReLU())
+        self.deconv3_out = spconv.SparseSequential(spconv.SparseConv3d(16, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
-        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 8, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
-                                     nn.BatchNorm3d(8),
-                                     nn.ReLU(inplace=True),
-                                     nn.Conv3d(8, 8, kernel_size=2, bias=False),
-                                     nn.BatchNorm3d(8),
-                                     nn.ReLU(inplace=True))
-        self.deconv4_out = nn.Sequential(nn.Conv3d(8, 1, kernel_size=1, bias=False),
+        self.deconv4 = spconv.SparseSequential(spconv.SparseConvTranspose3d(16, 8, kernel_size=5, stride=2, padding=1, bias=False),
+                                     nn.BatchNorm1d(8),
+                                     nn.ReLU(),
+                                     spconv.SparseConv3d(8,8,kernel_size=2, bias=False),
+                                     nn.BatchNorm1d(8),
+                                     nn.ReLU())
+        self.deconv4_out = spconv.SparseSequential(spconv.SparseConv3d(8, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
-        self.deconv5 = nn.Sequential(nn.ConvTranspose3d(8, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv5 = spconv.SparseSequential(spconv.SparseConvTranspose3d(8, 1, kernel_size=6, stride=2, padding=2),
                                      nn.Sigmoid())
 
-    def forward(self, x, level=None):
+    def forward(self, x, level=None, label=None):
         if self.training:
             level=None
 
@@ -104,24 +106,68 @@ class UNet(nn.Module):
             out_2 = torch.squeeze(out_2, 1)
             if level=="2":
                 return out_2
-
+        
+        if label is None:
+            # in prediction
+            mask_2 = out_2.clone().detach()
+            mask_2[mask_2 >= 0.5] = 1
+            mask_2[mask_2 < 0.5] = 0
+            mask_2 = torch.unsqueeze(mask_2,1).repeat(1,32,1,1,1).type(deconv2.dtype)
+        else:
+            # in training
+            mask_2 = torch.unsqueeze(label[0],1).repeat(1,32,1,1,1).type(deconv2.dtype)
+        
+        deconv2 = deconv2 * mask_2
+        deconv2 = deconv2.permute(0,2,3,4,1)
+        deconv2 = spconv.SparseConvTensor.from_dense(deconv2)    
         deconv3 = self.deconv3(deconv2)
 
         if level is None or level=="3":
             out_3 = self.deconv3_out(deconv3)
+            out_3 = out_3.dense()
             out_3 = torch.squeeze(out_3, 1)
             if level=="3":
                 return out_3
 
+        deconv3 = deconv3.dense()
+        if label is None:
+            # in prediction
+            mask_3 = out_3.clone().detach()
+            mask_3[mask_3 >= 0.5] = 1
+            mask_3[mask_3 < 0.5] = 0
+            mask_3 = torch.unsqueeze(mask_3,1).repeat(1,16,1,1,1).type(deconv3.dtype)
+        else:
+            # in training
+            mask_3 = torch.unsqueeze(label[1],1).repeat(1,16,1,1,1).type(deconv3.dtype)
+        
+        deconv3 = deconv3 * mask_3
+        deconv3 = deconv3.permute(0,2,3,4,1)
+        deconv3 = spconv.SparseConvTensor.from_dense(deconv3)    
         deconv4 = self.deconv4(deconv3)
 
         if level is None or level=="3":
             out_4 = self.deconv4_out(deconv4)
+            out_4 = out_4.dense()
             out_4 = torch.squeeze(out_4, 1)
             if level=="4":
                 return out_4
 
+        deconv4 = deconv4.dense()
+        if label is None:
+            # in prediction
+            mask_4 = out_4.clone().detach()
+            mask_4[mask_4 >= 0.5] = 1
+            mask_4[mask_4 < 0.5] = 0
+            mask_4 = torch.unsqueeze(mask_4,1).repeat(1,8,1,1,1).type(deconv4.dtype)
+        else:
+            # in training
+            mask_4 = torch.unsqueeze(label[2],1).repeat(1,8,1,1,1).type(deconv4.dtype)
+
+        deconv4 = deconv4 * mask_4
+        deconv4 = deconv4.permute(0,2,3,4,1)
+        deconv4 = spconv.SparseConvTensor.from_dense(deconv4)
         out_5 = self.deconv5(deconv4)
+        out_5 = out_5.dense()
         out_5 = torch.squeeze(out_5, 1)
         if level=="5":
             return out_5
@@ -193,7 +239,7 @@ class Voxel2D(nn.Module):
         if self.cost_vol_type == "gwc" or self.cost_vol_type == "gwcvoxel":
             self.gwc_conv3d = nn.Sequential(nn.Conv3d(40, 20, 1, 1), nn.Conv3d(20,1,1,1))
 
-    def forward(self, L, R, voxel_cost_vol=[0], level=None):
+    def forward(self, L, R, voxel_cost_vol=[0], level=None, label=None):
         features_L = self.feature_extraction(L)
         features_R = self.feature_extraction(R)
 
@@ -272,5 +318,5 @@ class Voxel2D(nn.Module):
             volume = self.gwc_conv3d(volume)
             volume = torch.squeeze(volume, 1)
 
-        out = self.encoder_decoder(volume, level)
+        out = self.encoder_decoder(volume, level, label)
         return [out]

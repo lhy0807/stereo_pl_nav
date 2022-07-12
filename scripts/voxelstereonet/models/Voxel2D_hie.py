@@ -39,21 +39,46 @@ class UNet(nn.Module):
             nn.Linear(512, 128), nn.ReLU(inplace=True))
 
         # 256x1x1x1 => 256x2x2x2
-        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=0, bias=False),
+                                     nn.BatchNorm3d(64),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(64, 64, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(64),
                                      nn.ReLU(inplace=True))
 
-        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+                                     nn.BatchNorm3d(32),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(32, 32, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(32),
                                      nn.ReLU(inplace=True))
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2), bias=False),
+        self.deconv2_out = nn.Sequential(nn.Conv3d(32, 1, kernel_size=1, bias=False),
+                                        nn.Sigmoid())
+
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+                                     nn.BatchNorm3d(16),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(16, 16, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
-        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv3_out = nn.Sequential(nn.Conv3d(16, 1, kernel_size=1, bias=False),
+                                        nn.Sigmoid())
+        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 8, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+                                     nn.BatchNorm3d(8),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(8, 8, kernel_size=2, bias=False),
+                                     nn.BatchNorm3d(8),
+                                     nn.ReLU(inplace=True))
+        self.deconv4_out = nn.Sequential(nn.Conv3d(8, 1, kernel_size=1, bias=False),
+                                        nn.Sigmoid())
+        self.deconv5 = nn.Sequential(nn.ConvTranspose3d(8, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
                                      nn.Sigmoid())
 
     def forward(self, x, level=None, label=None):
+        if self.training:
+            level=None
+
         B, C, H, W = x.shape
 
         # encoding
@@ -73,11 +98,35 @@ class UNet(nn.Module):
 
         deconv1 = self.deconv1(latent)
         deconv2 = self.deconv2(deconv1)
-        deconv3 = self.deconv3(deconv2)
-        out = self.deconv4(deconv3)
 
-        out = torch.squeeze(out, 1)
-        return out
+        if level is None or level=="2":
+            out_2 = self.deconv2_out(deconv2)
+            out_2 = torch.squeeze(out_2, 1)
+            if level=="2":
+                return out_2
+
+        deconv3 = self.deconv3(deconv2)
+
+        if level is None or level=="3":
+            out_3 = self.deconv3_out(deconv3)
+            out_3 = torch.squeeze(out_3, 1)
+            if level=="3":
+                return out_3
+
+        deconv4 = self.deconv4(deconv3)
+
+        if level is None or level=="3":
+            out_4 = self.deconv4_out(deconv4)
+            out_4 = torch.squeeze(out_4, 1)
+            if level=="4":
+                return out_4
+
+        out_5 = self.deconv5(deconv4)
+        out_5 = torch.squeeze(out_5, 1)
+        if level=="5":
+            return out_5
+
+        return [out_2, out_3, out_4, out_5]
 
 
 class Voxel2D(nn.Module):
@@ -223,5 +272,5 @@ class Voxel2D(nn.Module):
             volume = self.gwc_conv3d(volume)
             volume = torch.squeeze(volume, 1)
 
-        out = self.encoder_decoder(volume)
+        out = self.encoder_decoder(volume, level)
         return [out]

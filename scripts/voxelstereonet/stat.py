@@ -1,24 +1,25 @@
 from thop import profile, clever_format
 from ptflops import get_model_complexity_info
 
-from models.Voxel2D_lite import Voxel2D
+from models.Voxel2D_sparse import Voxel2D
 import torch
 import torch.nn as nn
 
 voxel_disp = []
-for i in torch.arange(1,17):
+for i in torch.arange(1,12):
     voxel_disp.append(torch.unsqueeze(i,0))
 
 def input_constructor(input_shape):
     # For Flops-Counter method
     # Notice the input naming
-    inputs = {'L': torch.ones(input_shape), 'R': torch.ones(input_shape), 'voxel_cost_vol':voxel_disp}
+    inputs = {'L': torch.ones(input_shape).cuda(), 'R': torch.ones(input_shape).cuda(), 'voxel_cost_vol':voxel_disp}
     return inputs
 
 model = Voxel2D(192,"voxel")
+model = model.cuda()
 
-input_L = torch.randn(1, 3, 400, 880)
-input_R = torch.randn(1, 3, 400, 880)
+input_L = torch.randn(1, 3, 400, 880).cuda()
+input_R = torch.randn(1, 3, 400, 880).cuda()
 
 macs, params = profile(model, inputs=(input_L, input_R, voxel_disp))
 macs, params = clever_format([macs, params], "%.3f")

@@ -86,7 +86,7 @@ def train(config=None):
 
         optimizer.zero_grad()
 
-        voxel_ests = model(imgL, imgR, voxel_cost_vol)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
         loss, iou = model_loss(voxel_ests, voxel_gt)
 
         voxel_ests = voxel_ests[-1]
@@ -145,6 +145,8 @@ def train(config=None):
         modelName = '2D-StereoVoxelNet-Lite'
     elif args.model == "Voxel2D_sparse":
         modelName = '2D-StereoVoxelNet-Sparse'
+    elif args.model == "Voxel2D_hie":
+        modelName = '2D-StereoVoxelNet-Hierarchical'
 
     print("==========================\n", modelName, "\n==========================")
 
@@ -215,9 +217,9 @@ def train(config=None):
 
     # log inside wandb
     if args.resume:
-        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id, resume=True)
+        wandb.init(project="voxelsparse_debug", entity="nu-team", id=wandb_run_id, resume=True)
     else:
-        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id)
+        wandb.init(project="voxelsparse_debug", entity="nu-team", id=wandb_run_id)
 
     # config = wandb.config
     log.info(f"wandb config: {config}")
