@@ -217,9 +217,9 @@ def train(config=None):
 
     # log inside wandb
     if args.resume:
-        wandb.init(project="voxelsparse_debug", entity="nu-team", id=wandb_run_id, resume=True)
+        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id, resume=True)
     else:
-        wandb.init(project="voxelsparse_debug", entity="nu-team", id=wandb_run_id)
+        wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id)
 
     # config = wandb.config
     log.info(f"wandb config: {config}")
