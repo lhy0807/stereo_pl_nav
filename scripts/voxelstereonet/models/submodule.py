@@ -286,11 +286,19 @@ def IoU_loss(pred, gt):
     return 1-calc_IoU(pred, gt)
 
 
-def model_loss(voxel_ests, voxel_gt):
+def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
     voxel_ests = voxel_ests[0]
     # sum of loss of every level
     # from OGN https://openaccess.thecvf.com/content_ICCV_2017/papers/Tatarchenko_Octree_Generating_Networks_ICCV_2017_paper.pdf
+
+    # weighted loss
+    # from Quadtree
+    weight = [0.4, 0.3, 0.2, 0.1]
     all_losses = []
-    for idx, voxel_est in enumerate(voxel_ests):
-        all_losses.append(IoU_loss(voxel_est, voxel_gt[idx]))
+    if weighted_loss:
+        for idx, voxel_est in enumerate(voxel_ests):
+            all_losses.append(weight[idx] * IoU_loss(voxel_est, voxel_gt[idx]))
+    else:
+        for idx, voxel_est in enumerate(voxel_ests):
+            all_losses.append(IoU_loss(voxel_est, voxel_gt[idx]))
     return sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))

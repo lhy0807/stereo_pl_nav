@@ -66,6 +66,8 @@ parser.add_argument('--cost_vol_type', type=str, default="even",
                     help='Choice of Cost Volume Type',
                     choices=["even","eveneven","full","voxel","gwc","gwcvoxel","voxellite"])
 parser.add_argument('--log_folder_suffix', type=str, default="")
+parser.add_argument('--weighted_loss', action='store_true',
+                    help='Enable weighted loss')
 
 # parse arguments, set seeds
 args = parser.parse_args()
@@ -87,7 +89,7 @@ def train(config=None):
         optimizer.zero_grad()
 
         voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-        loss, iou = model_loss(voxel_ests, voxel_gt)
+        loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
@@ -121,7 +123,7 @@ def train(config=None):
                 voxel_gt[i] = voxel_gt[i].cuda()
 
         voxel_ests = model(imgL, imgR, voxel_cost_vol)
-        loss, iou = model_loss(voxel_ests, voxel_gt)
+        loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
@@ -158,6 +160,10 @@ def train(config=None):
         logdir_name += '_'
 
     logdir_name += args.model + "_"
+
+    if args.weighted_loss:
+        logdir_name += "weighted_loss_"
+
     if args.log_folder_suffix != "":
         logdir_name += args.log_folder_suffix
     
@@ -221,6 +227,9 @@ def train(config=None):
     else:
         wandb.init(project="voxelsparse", entity="nu-team", id=wandb_run_id)
 
+    wandb.run.name = logdir_name
+    wandb.save()
+    
     # config = wandb.config
     log.info(f"wandb config: {config}")
 
