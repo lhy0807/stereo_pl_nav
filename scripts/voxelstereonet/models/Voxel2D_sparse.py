@@ -8,9 +8,44 @@ import torch.utils.data
 from torch import reshape
 import torch.nn.functional as F
 from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, groupwise_correlation
+from spconv.pytorch import SparseConvTensor
 import spconv.pytorch as spconv
+from functools import reduce 
+from typing import List
 
+def calc_IoU(pred, gt):
+    intersect = pred*gt 
+    total = pred+gt  
+    union = total-intersect
 
+    return (intersect.sum() + 1.0) / (union.sum() + 1.0)
+
+def IoU_loss(pred, gt):
+    return 1-calc_IoU(pred, gt)
+
+def sparse_loss(*tens: SparseConvTensor):
+    """reuse torch.sparse. the internal is sort + unique 
+    """
+    max_num_indices = 0
+    max_num_indices_idx = 0
+    ten_ths: List[torch.Tensor] = []
+    first = tens[0]
+    res_shape = [first.batch_size, *first.spatial_shape, first.features.shape[1]]
+
+    for i, ten in enumerate(tens):
+        assert ten.spatial_shape == tens[0].spatial_shape
+        assert ten.batch_size == tens[0].batch_size
+        assert ten.features.shape[1] == tens[0].features.shape[1]
+        if max_num_indices < ten.features.shape[0]:
+            max_num_indices_idx = i
+            max_num_indices = ten.features.shape[0]
+        ten_ths.append(torch.sparse_coo_tensor(ten.indices.T, ten.features, res_shape, requires_grad=True))
+    
+    c_th_intersect = reduce(lambda x, y: x * y, ten_ths).coalesce()
+    c_th_total = reduce(lambda x, y: x + y, ten_ths).coalesce()
+    c_th_union = c_th_total - c_th_intersect
+    iou = (torch.sparse.sum(c_th_intersect) + 1.0) / (torch.sparse.sum(c_th_union) + 1.0)
+    return 1-iou 
 
 
 class UNet(nn.Module):
@@ -172,7 +207,22 @@ class UNet(nn.Module):
         if level=="5":
             return out_5
 
-        return [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
+        weight = [0.4, 0.3, 0.2, 0.1]
+        all_losses = []
+        voxel_ests = [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
+        for idx, voxel_est in enumerate(voxel_ests):
+            loss = None
+            if idx == 0:
+                # dense loss for first output
+                loss = IoU_loss(voxel_est, label[idx])
+            else:
+                # calculate sparse loss
+                sparse_label = torch.unsqueeze(label[idx].clone(),1).permute(0,2,3,4,1)
+                sparse_label = spconv.SparseConvTensor.from_dense(sparse_label)    
+                loss = sparse_loss(voxel_est, sparse_label)
+            all_losses.append(weight[idx] * loss)
+
+        return [out_2, out_3, out_4, out_5], sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
 
 
 class Voxel2D(nn.Module):

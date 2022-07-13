@@ -87,9 +87,14 @@ def train(config=None):
                 voxel_gt[i] = voxel_gt[i].cuda()
 
         optimizer.zero_grad()
-
-        voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-        loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
+        
+        if args.model == "Voxel2D_sparse":
+            result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+            voxel_ests, loss, iou = result[0]
+            voxel_ests = [voxel_ests]
+        else:
+            voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+            loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}

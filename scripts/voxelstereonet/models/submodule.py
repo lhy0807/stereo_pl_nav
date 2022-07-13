@@ -311,7 +311,6 @@ def sparse_loss(*tens: SparseConvTensor):
     c_th_total = reduce(lambda x, y: x + y, ten_ths).coalesce()
     c_th_union = c_th_total - c_th_intersect
     iou = (torch.sparse.sum(c_th_intersect) + 1.0) / (torch.sparse.sum(c_th_union) + 1.0)
-    
     return 1-iou 
 
 def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
