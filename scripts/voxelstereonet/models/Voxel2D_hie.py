@@ -56,23 +56,23 @@ class UNet(nn.Module):
         self.deconv2_out = nn.Sequential(nn.Conv3d(32, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=6, stride=2, padding=1, bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True),
-                                     nn.Conv3d(16, 16, kernel_size=2, bias=False),
+                                     nn.Conv3d(16, 16, kernel_size=3, bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
         self.deconv3_out = nn.Sequential(nn.Conv3d(16, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
-        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 8, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 8, kernel_size=6, stride=2, padding=1, bias=False),
                                      nn.BatchNorm3d(8),
                                      nn.ReLU(inplace=True),
-                                     nn.Conv3d(8, 8, kernel_size=2, bias=False),
+                                     nn.Conv3d(8, 8, kernel_size=3, bias=False),
                                      nn.BatchNorm3d(8),
                                      nn.ReLU(inplace=True))
         self.deconv4_out = nn.Sequential(nn.Conv3d(8, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
-        self.deconv5 = nn.Sequential(nn.ConvTranspose3d(8, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv5 = nn.Sequential(nn.ConvTranspose3d(8, 1, kernel_size=6, stride=2, padding=2),
                                      nn.Sigmoid())
 
     def forward(self, x, level=None, label=None):
