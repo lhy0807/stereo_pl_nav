@@ -95,21 +95,21 @@ class UNet(nn.Module):
         self.deconv2_out = nn.Sequential(nn.Conv3d(32, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
 
-        self.deconv3 = spconv.SparseSequential(spconv.SparseConvTranspose3d(32, 16, kernel_size=5, stride=2, padding=1, bias=False),
+        self.deconv3 = spconv.SparseSequential(spconv.SparseConvTranspose3d(32, 16, kernel_size=6, stride=2, padding=2, bias=False),
                                      nn.BatchNorm1d(16),
                                      nn.ReLU(),
-                                     spconv.SparseConv3d(16,16,kernel_size=2, bias=False),
+                                     spconv.SubMConv3d(16,16,kernel_size=3, bias=False),
                                      nn.BatchNorm1d(16),
                                      nn.ReLU())
         self.deconv3_out = spconv.SparseSequential(spconv.SparseConv3d(16, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
-        self.deconv4 = spconv.SparseSequential(spconv.SparseConvTranspose3d(16, 8, kernel_size=5, stride=2, padding=1, bias=False),
+        self.deconv4 = spconv.SparseSequential(spconv.SparseConvTranspose3d(16, 8, kernel_size=6, stride=2, padding=2, bias=False),
                                      nn.BatchNorm1d(8),
                                      nn.ReLU(),
-                                     spconv.SparseConv3d(8,8,kernel_size=2, bias=False),
+                                     spconv.SubMConv3d(8,8,kernel_size=3, bias=False),
                                      nn.BatchNorm1d(8),
                                      nn.ReLU())
-        self.deconv4_out = spconv.SparseSequential(spconv.SparseConv3d(8, 1, kernel_size=1, bias=False),
+        self.deconv4_out = spconv.SparseSequential(spconv.SubMConv3d(8, 1, kernel_size=1, bias=False),
                                         nn.Sigmoid())
         self.deconv5 = spconv.SparseSequential(spconv.SparseConvTranspose3d(8, 1, kernel_size=6, stride=2, padding=2),
                                      nn.Sigmoid())
@@ -222,7 +222,7 @@ class UNet(nn.Module):
                 loss = sparse_loss(voxel_est, sparse_label)
             all_losses.append(weight[idx] * loss)
 
-        return [out_2, out_3, out_4, out_5], sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
+        return [out_2, out_3, out_4, out_5], sum(all_losses), 1-sum(all_losses)
 
 
 class Voxel2D(nn.Module):
