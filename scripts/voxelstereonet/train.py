@@ -91,8 +91,8 @@ def train(config=None):
         if args.model == "Voxel2D_sparse":
             result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
             voxel_ests, loss, iou = result[0]
-            loss = loss.sum()
-            iou = iou.sum()
+            loss = loss.mean()
+            iou = iou.mean()
             voxel_ests = [voxel_ests]
         else:
             voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
