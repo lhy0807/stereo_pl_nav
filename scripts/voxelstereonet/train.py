@@ -77,6 +77,7 @@ torch.cuda.manual_seed(args.seed)
 def train(config=None):
     # train one sample
     def train_sample(sample, compute_metrics=False):
+        scaler = torch.cuda.amp.grad_scaler.GradScaler()
         model.train()
 
         imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
@@ -88,15 +89,16 @@ def train(config=None):
 
         optimizer.zero_grad()
         
-        if args.model == "Voxel2D_sparse":
-            result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-            voxel_ests, loss, iou = result[0]
-            loss = loss.mean()
-            iou = iou.sum()
-            voxel_ests = [voxel_ests]
-        else:
-            voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-            loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
+        with torch.cuda.amp.autocast():
+            if args.model == "Voxel2D_sparse":
+                result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+                voxel_ests, loss, iou = result[0]
+                loss = loss.mean()
+                iou = iou.mean()
+                voxel_ests = [voxel_ests]
+            else:
+                voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+                loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
@@ -111,8 +113,10 @@ def train(config=None):
                 # left_img = np.load(left_filename)
                 # img_outputs["left_img"] = to_tensor(left_img)
 
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+
+        scaler.update()
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
@@ -133,7 +137,7 @@ def train(config=None):
             result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
             voxel_ests, loss, iou = result[0]
             loss = loss.mean()
-            iou = iou.sum()
+            iou = iou.mean()
             voxel_ests = [voxel_ests]
         else:
             voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
