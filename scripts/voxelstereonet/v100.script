@@ -3,7 +3,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --partition=multigpu
 #SBATCH --gres=gpu:v100-sxm2:3
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=18
 #SBATCH --mem=128GB
 #SBATCH --output=HPC_log/myjob.%j.out
 #SBATCH --error=HPC_log/myjob.%j.err
@@ -18,5 +18,5 @@ python train.py --dataset voxelds --datapath /work/riverlab/hongyu/dataset/DS \
  --trainlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt \
  --testlist /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt \
  --epochs 20 --lrepochs "10,16:2" --logdir /work/riverlab/hongyu/stereo_pl_nav/scripts/voxelstereonet/logs \
- --batch_size 16 --test_batch_size 16 --summary_freq 50 --loader_workers 16 \
+ --batch_size 18 --test_batch_size 18 --summary_freq 50 --loader_workers 18 \
  --cost_vol_type voxel
