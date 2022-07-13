@@ -88,16 +88,15 @@ def train(config=None):
 
         optimizer.zero_grad()
         
-        with torch.cuda.amp.autocast():
-            if args.model == "Voxel2D_sparse":
-                result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-                voxel_ests, loss, iou = result[0]
-                loss = loss.mean()
-                iou = iou.mean()
-                voxel_ests = [voxel_ests]
-            else:
-                voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-                loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
+        if args.model == "Voxel2D_sparse":
+            result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+            voxel_ests, loss, iou = result[0]
+            loss = loss.mean()
+            iou = iou.mean()
+            voxel_ests = [voxel_ests]
+        else:
+            voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+            loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}
@@ -112,10 +111,8 @@ def train(config=None):
                 # left_img = np.load(left_filename)
                 # img_outputs["left_img"] = to_tensor(left_img)
 
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-
-        scaler.update()
+        loss.backward()
+        optimizer.step()
 
         return tensor2float(loss), tensor2float(scalar_outputs), voxel_outputs, img_outputs
 
@@ -213,9 +210,6 @@ def train(config=None):
         optimizer = optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9)
     else:
         raise Exception("optimizer choice error!")
-
-    # mixed pricision training
-    scaler = torch.cuda.amp.grad_scaler.GradScaler()
 
     wandb_run_id = wandb.util.generate_id()
     # load parameters
