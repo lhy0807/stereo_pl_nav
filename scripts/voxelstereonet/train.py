@@ -77,7 +77,6 @@ torch.cuda.manual_seed(args.seed)
 def train(config=None):
     # train one sample
     def train_sample(sample, compute_metrics=False):
-        scaler = torch.cuda.amp.grad_scaler.GradScaler()
         model.train()
 
         imgL, imgR, voxel_gt, voxel_cost_vol = sample['left'], sample['right'], sample['voxel_grid'], sample['vox_cost_vol_disps']
@@ -215,6 +214,8 @@ def train(config=None):
     else:
         raise Exception("optimizer choice error!")
 
+    # mixed pricision training
+    scaler = torch.cuda.amp.grad_scaler.GradScaler()
 
     wandb_run_id = wandb.util.generate_id()
     # load parameters
@@ -289,6 +290,7 @@ def train(config=None):
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
+            break
 
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:

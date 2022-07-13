@@ -207,22 +207,27 @@ class UNet(nn.Module):
         if level=="5":
             return out_5
 
-        weight = [0.4, 0.3, 0.2, 0.1]
-        all_losses = []
-        voxel_ests = [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
-        for idx, voxel_est in enumerate(voxel_ests):
-            loss = None
-            if idx == 0:
-                # dense loss for first output
-                loss = IoU_loss(voxel_est, label[idx])
-            else:
-                # calculate sparse loss
-                sparse_label = torch.unsqueeze(label[idx].clone(),1).permute(0,2,3,4,1)
-                sparse_label = spconv.SparseConvTensor.from_dense(sparse_label)    
-                loss = sparse_loss(voxel_est, sparse_label)
-            all_losses.append(weight[idx] * loss)
+        if label:
+            # know the ground truth
+            weight = [0.4, 0.3, 0.2, 0.1]
+            all_losses = []
+            voxel_ests = [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
+            for idx, voxel_est in enumerate(voxel_ests):
+                loss = None
+                if idx == 0:
+                    # dense loss for first output
+                    loss = IoU_loss(voxel_est, label[idx])
+                else:
+                    # calculate sparse loss
+                    sparse_label = torch.unsqueeze(label[idx].clone(),1).permute(0,2,3,4,1)
+                    sparse_label = spconv.SparseConvTensor.from_dense(sparse_label)    
+                    loss = sparse_loss(voxel_est, sparse_label)
+                all_losses.append(weight[idx] * loss)
 
-        return [out_2, out_3, out_4, out_5], sum(all_losses), 1-sum(all_losses)
+            return [out_2, out_3, out_4, out_5], sum(all_losses), 1-sum(all_losses)
+        else:
+            # during inference
+            return [out_2, out_3, out_4, out_5]
 
 
 class Voxel2D(nn.Module):
