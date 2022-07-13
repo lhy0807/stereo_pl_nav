@@ -129,15 +129,8 @@ def train(config=None):
             for i in range(len(voxel_gt)):
                 voxel_gt[i] = voxel_gt[i].cuda()
 
-        if args.model == "Voxel2D_sparse":
-            result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-            voxel_ests, loss, iou = result[0]
-            loss = loss.mean()
-            iou = iou.mean()
-            voxel_ests = [voxel_ests]
-        else:
-            voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
-            loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
+        voxel_ests = model(imgL, imgR, voxel_cost_vol)
+        loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
         scalar_outputs = {"loss": loss}

@@ -24,7 +24,8 @@ def IoU_loss(pred, gt):
     return 1-calc_IoU(pred, gt)
 
 def sparse_loss(*tens: SparseConvTensor):
-    """reuse torch.sparse. the internal is sort + unique 
+    """
+    calculate the IoU loss of the sparse matrix
     """
     max_num_indices = 0
     max_num_indices_idx = 0
@@ -46,6 +47,17 @@ def sparse_loss(*tens: SparseConvTensor):
     c_th_union = c_th_total - c_th_intersect
     iou = (torch.sparse.sum(c_th_intersect) + 1.0) / (torch.sparse.sum(c_th_union) + 1.0)
     return 1-iou 
+
+def create_sparse_tensor(x: torch.Tensor):
+    """create sparse tensor fron channel last dense tensor by to_sparse
+    x must be NHWC tensor, channel last
+    """
+    x_sp = x.to_sparse(x.ndim - 1).coalesce()
+    spatial_shape = list(x_sp.shape[1:-1])
+    batch_size = x_sp.shape[0]
+    indices_th = x_sp.indices().permute(1, 0).contiguous().int()
+    features_th = x_sp.values()
+    return spconv.SparseConvTensor(features_th, indices_th, spatial_shape, batch_size)
 
 
 class UNet(nn.Module):
@@ -156,7 +168,7 @@ class UNet(nn.Module):
         
         deconv2 = deconv2 * mask_2
         deconv2 = deconv2.permute(0,2,3,4,1)
-        deconv2 = spconv.SparseConvTensor.from_dense(deconv2)    
+        deconv2 = create_sparse_tensor(deconv2)    
         deconv3 = self.deconv3(deconv2)
 
         sparse_out_3 = self.deconv3_out(deconv3)
@@ -172,13 +184,17 @@ class UNet(nn.Module):
             mask_3[mask_3 >= 0.5] = 1
             mask_3[mask_3 < 0.5] = 0
             mask_3 = torch.unsqueeze(mask_3,1).repeat(1,16,1,1,1).type(deconv3.dtype)
+
+            # extreme case, avoid bug in sparse calculation
+            if not torch.is_nonzero(mask_3.sum()):
+                mask_3 += 1e-6
         else:
             # in training
             mask_3 = torch.unsqueeze(label[1],1).repeat(1,16,1,1,1).type(deconv3.dtype)
         
         deconv3 = deconv3 * mask_3
         deconv3 = deconv3.permute(0,2,3,4,1)
-        deconv3 = spconv.SparseConvTensor.from_dense(deconv3)    
+        deconv3 = create_sparse_tensor(deconv3)    
         deconv4 = self.deconv4(deconv3)
 
         sparse_out_4 = self.deconv4_out(deconv4)
@@ -194,13 +210,17 @@ class UNet(nn.Module):
             mask_4[mask_4 >= 0.5] = 1
             mask_4[mask_4 < 0.5] = 0
             mask_4 = torch.unsqueeze(mask_4,1).repeat(1,8,1,1,1).type(deconv4.dtype)
+
+            # extreme case, avoid bug in sparse calculation
+            if not torch.is_nonzero(mask_4.sum()):
+                mask_4 += 1e-6
         else:
             # in training
             mask_4 = torch.unsqueeze(label[2],1).repeat(1,8,1,1,1).type(deconv4.dtype)
 
         deconv4 = deconv4 * mask_4
         deconv4 = deconv4.permute(0,2,3,4,1)
-        deconv4 = spconv.SparseConvTensor.from_dense(deconv4)
+        deconv4 = create_sparse_tensor(deconv4)
         sparse_out_5 = self.deconv5(deconv4)
         out_5 = sparse_out_5.dense()
         out_5 = torch.squeeze(out_5, 1)
@@ -209,7 +229,7 @@ class UNet(nn.Module):
 
         if label:
             # know the ground truth
-            weight = [0.4, 0.3, 0.2, 0.1]
+            weight = [0.30,0.27,0.23,0.20]
             all_losses = []
             voxel_ests = [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
             for idx, voxel_est in enumerate(voxel_ests):
@@ -220,7 +240,7 @@ class UNet(nn.Module):
                 else:
                     # calculate sparse loss
                     sparse_label = torch.unsqueeze(label[idx].clone(),1).permute(0,2,3,4,1)
-                    sparse_label = spconv.SparseConvTensor.from_dense(sparse_label)    
+                    sparse_label = create_sparse_tensor(sparse_label)    
                     loss = sparse_loss(voxel_est, sparse_label)
                 all_losses.append(weight[idx] * loss)
 

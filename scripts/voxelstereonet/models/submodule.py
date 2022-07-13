@@ -322,7 +322,7 @@ def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
     # from Quadtree
 
     # By default
-    weight = [0.4, 0.3, 0.2, 0.1]
+    weight = [0.30,0.27,0.23,0.20]
     all_losses = []
 
     if isinstance(voxel_ests[-1], SparseConvTensor):
@@ -360,4 +360,4 @@ def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
         for idx, voxel_est in enumerate(voxel_ests):
             all_losses.append(IoU_loss(voxel_est, voxel_gt[idx]))
 
-    return sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
+    return sum(all_losses), 1-sum(all_losses)
