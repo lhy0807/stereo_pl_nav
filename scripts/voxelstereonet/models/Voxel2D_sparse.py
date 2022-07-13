@@ -5,11 +5,13 @@ from time import sleep
 import torch.nn as nn
 from torch import Tensor
 import torch.utils.data
-from collections import OrderedDict
 from torch import reshape
 import torch.nn.functional as F
 from .submodule import feature_extraction, MobileV2_Residual, convbn, interweave_tensors, groupwise_correlation
 import spconv.pytorch as spconv
+
+
+
 
 class UNet(nn.Module):
     def __init__(self, cost_vol_type) -> None:
@@ -122,12 +124,11 @@ class UNet(nn.Module):
         deconv2 = spconv.SparseConvTensor.from_dense(deconv2)    
         deconv3 = self.deconv3(deconv2)
 
-        if level is None or level=="3":
-            out_3 = self.deconv3_out(deconv3)
-            out_3 = out_3.dense()
-            out_3 = torch.squeeze(out_3, 1)
-            if level=="3":
-                return out_3
+        sparse_out_3 = self.deconv3_out(deconv3)
+        out_3 = sparse_out_3.dense()
+        out_3 = torch.squeeze(out_3, 1)
+        if level=="3":
+            return out_3
 
         deconv3 = deconv3.dense()
         if label is None:
@@ -145,12 +146,11 @@ class UNet(nn.Module):
         deconv3 = spconv.SparseConvTensor.from_dense(deconv3)    
         deconv4 = self.deconv4(deconv3)
 
-        if level is None or level=="3":
-            out_4 = self.deconv4_out(deconv4)
-            out_4 = out_4.dense()
-            out_4 = torch.squeeze(out_4, 1)
-            if level=="4":
-                return out_4
+        sparse_out_4 = self.deconv4_out(deconv4)
+        out_4 = sparse_out_4.dense()
+        out_4 = torch.squeeze(out_4, 1)
+        if level=="4":
+            return out_4
 
         deconv4 = deconv4.dense()
         if label is None:
@@ -166,13 +166,13 @@ class UNet(nn.Module):
         deconv4 = deconv4 * mask_4
         deconv4 = deconv4.permute(0,2,3,4,1)
         deconv4 = spconv.SparseConvTensor.from_dense(deconv4)
-        out_5 = self.deconv5(deconv4)
-        out_5 = out_5.dense()
+        sparse_out_5 = self.deconv5(deconv4)
+        out_5 = sparse_out_5.dense()
         out_5 = torch.squeeze(out_5, 1)
         if level=="5":
             return out_5
 
-        return [out_2, out_3, out_4, out_5]
+        return [out_2, sparse_out_3, sparse_out_4, sparse_out_5]
 
 
 class Voxel2D(nn.Module):
