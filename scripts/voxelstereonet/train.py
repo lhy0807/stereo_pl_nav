@@ -290,7 +290,6 @@ def train(config=None):
                                                                                                TrainImgLoader), loss,
                                                                                            time.time() - start_time))
             del scalar_outputs, voxel_outputs, img_outputs
-            break
 
         # saving checkpoints
         if (epoch_idx + 1) % args.save_freq == 0:
