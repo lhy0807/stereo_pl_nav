@@ -23,7 +23,7 @@ cudnn.benchmark = True
 log = logging.getLogger(__name__)
 coloredlogs.install(level='DEBUG', logger=log)
 
-parser = argparse.ArgumentParser(description='MobileStereoNet')
+parser = argparse.ArgumentParser(description='VoxelStereoNet')
 parser.add_argument('--model', default='Voxel2D_sparse',
                     help='select a model structure', choices=__models__.keys())
 parser.add_argument('--maxdisp', type=int, default=192,

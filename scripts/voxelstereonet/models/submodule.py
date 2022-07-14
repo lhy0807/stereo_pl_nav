@@ -328,6 +328,11 @@ def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
         weight = [0.25,0.25,0.25,0.25]
     all_losses = []
 
+    if isinstance(voxel_ests, torch.Tensor):
+        # straight network
+        all_losses.append(IoU_loss(voxel_ests, voxel_gt[-1]))
+        return sum(all_losses), 1-sum(all_losses)
+
     if isinstance(voxel_ests[-1], SparseConvTensor):
         # calculate mix of iou loss and sparse loss
         for idx, voxel_est in enumerate(voxel_ests):

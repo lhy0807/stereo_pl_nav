@@ -39,20 +39,34 @@ class UNet(nn.Module):
             nn.Linear(512, 128), nn.ReLU(inplace=True))
 
         # 256x1x1x1 => 256x2x2x2
-        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+        self.deconv1 = nn.Sequential(nn.ConvTranspose3d(128, 64, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=0, bias=False),
+                                     nn.BatchNorm3d(64),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(64, 64, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(64),
                                      nn.ReLU(inplace=True))
 
-        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(0, 0, 0), bias=False),
+        self.deconv2 = nn.Sequential(nn.ConvTranspose3d(64, 32, kernel_size=(5, 5, 5), stride=(2, 2, 2), padding=(1, 1, 1), bias=False),
+                                     nn.BatchNorm3d(32),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(32, 32, kernel_size=2, bias=False),
                                      nn.BatchNorm3d(32),
                                      nn.ReLU(inplace=True))
 
-        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2), bias=False),
+        self.deconv3 = nn.Sequential(nn.ConvTranspose3d(32, 16, kernel_size=6, stride=2, padding=1, bias=False),
+                                     nn.BatchNorm3d(16),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(16, 16, kernel_size=3, bias=False),
                                      nn.BatchNorm3d(16),
                                      nn.ReLU(inplace=True))
-        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 1, kernel_size=(6, 6, 6), stride=(2, 2, 2), padding=(2, 2, 2)),
+        self.deconv4 = nn.Sequential(nn.ConvTranspose3d(16, 8, kernel_size=6, stride=2, padding=1, bias=False),
+                                     nn.BatchNorm3d(8),
+                                     nn.ReLU(inplace=True),
+                                     nn.Conv3d(8, 8, kernel_size=3, bias=False),
+                                     nn.BatchNorm3d(8),
+                                     nn.ReLU(inplace=True))
+        self.deconv5 = nn.Sequential(nn.ConvTranspose3d(8, 1, kernel_size=6, stride=2, padding=2),
                                      nn.Sigmoid())
-
     def forward(self, x, level=None, label=None):
         B, C, H, W = x.shape
 
@@ -74,7 +88,8 @@ class UNet(nn.Module):
         deconv1 = self.deconv1(latent)
         deconv2 = self.deconv2(deconv1)
         deconv3 = self.deconv3(deconv2)
-        out = self.deconv4(deconv3)
+        deconv4 = self.deconv4(deconv3)
+        out = self.deconv5(deconv4)
 
         out = torch.squeeze(out, 1)
         return out
