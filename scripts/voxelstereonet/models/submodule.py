@@ -322,42 +322,28 @@ def model_loss(voxel_ests, voxel_gt, weighted_loss=None):
     # from Quadtree
 
     # By default
-    weight = [0.30,0.27,0.23,0.20]
+    if weighted_loss:
+        weight = [0.30,0.27,0.23,0.20]
+    else:
+        weight = [0.25,0.25,0.25,0.25]
     all_losses = []
 
     if isinstance(voxel_ests[-1], SparseConvTensor):
         # calculate mix of iou loss and sparse loss
-        if weighted_loss:
-            for idx, voxel_est in enumerate(voxel_ests):
-                loss = None
-                if idx == 0:
-                    # dense loss for first output
-                    loss = IoU_loss(voxel_est, voxel_gt[idx])
-                else:
-                    # calculate sparse loss
-                    sparse_label1 = torch.unsqueeze(voxel_gt[idx].clone(),1).permute(0,2,3,4,1)
-                    sparse_label1 = spconv.SparseConvTensor.from_dense(sparse_label1)    
-                    loss = sparse_loss(voxel_est, sparse_label1)
-                all_losses.append(weight[idx] * loss)
-        else:
-            for idx, voxel_est in enumerate(voxel_ests):
-                loss = None
-                if idx == 0:
-                    # dense loss for first output
-                    loss = IoU_loss(voxel_est, voxel_gt[idx])
-                else:
-                    # calculate sparse loss
-                    sparse_label1 = torch.unsqueeze(voxel_gt[idx].clone(),1).permute(0,2,3,4,1)
-                    sparse_label1 = spconv.SparseConvTensor.from_dense(sparse_label1)    
-                    loss = sparse_loss(voxel_est, sparse_label1)
-                all_losses.append(loss)
-        return sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
-
-    if weighted_loss:
         for idx, voxel_est in enumerate(voxel_ests):
-            all_losses.append(weight[idx] * IoU_loss(voxel_est, voxel_gt[idx]))
+            loss = None
+            if idx == 0:
+                # dense loss for first output
+                loss = IoU_loss(voxel_est, voxel_gt[idx])
+            else:
+                # calculate sparse loss
+                sparse_label1 = torch.unsqueeze(voxel_gt[idx].clone(),1).permute(0,2,3,4,1)
+                sparse_label1 = spconv.SparseConvTensor.from_dense(sparse_label1)    
+                loss = sparse_loss(voxel_est, sparse_label1)
+            all_losses.append(weight[idx] * loss)
+        return sum(all_losses), 1-torch.mean(torch.Tensor(all_losses))
+        
     else:
         for idx, voxel_est in enumerate(voxel_ests):
-            all_losses.append(IoU_loss(voxel_est, voxel_gt[idx]))
-
-    return sum(all_losses), 1-sum(all_losses)
+            all_losses.append(weight[idx] * IoU_loss(voxel_est, voxel_gt[idx]))
+        return sum(all_losses), 1-sum(all_losses)

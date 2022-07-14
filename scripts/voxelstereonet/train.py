@@ -68,6 +68,8 @@ parser.add_argument('--cost_vol_type', type=str, default="even",
 parser.add_argument('--log_folder_suffix', type=str, default="")
 parser.add_argument('--weighted_loss', action='store_true',
                     help='Enable weighted loss')
+parser.add_argument('--blind', action='store_true',
+                    help='Enable weighted loss')
 
 # parse arguments, set seeds
 args = parser.parse_args()
@@ -88,14 +90,15 @@ def train(config=None):
 
         optimizer.zero_grad()
         
-        if args.model == "Voxel2D_sparse":
+        if args.model == "Voxel2D_sparse" and not args.blind:
+            # not blind -> we can see label during training
             result = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
             voxel_ests, loss, iou = result[0]
             loss = loss.mean()
             iou = iou.mean()
             voxel_ests = [voxel_ests]
         else:
-            voxel_ests = model(imgL, imgR, voxel_cost_vol, label=voxel_gt)
+            voxel_ests = model(imgL, imgR, voxel_cost_vol)
             loss, iou = model_loss(voxel_ests, voxel_gt, args.weighted_loss)
 
         voxel_ests = voxel_ests[-1]
@@ -170,6 +173,9 @@ def train(config=None):
 
     if args.weighted_loss:
         logdir_name += "weighted_loss_"
+    
+    if args.blind:
+        logdir_name += "blind_"
 
     if args.log_folder_suffix != "":
         logdir_name += args.log_folder_suffix
