@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --time=48:00:00
+#SBATCH --gres=gpu:rtx8000:2
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32GB
+#SBATCH --output=HPC_log/myjob.%j.out
+#SBATCH --error=HPC_log/myjob.%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=lihongyu0807@icloud.com
+
+singularity exec --nv --overlay /scratch/yw3076/lhy/overlay-50G-10M.ext3:ro --overlay /scratch/yw3076/lhy/DS.sqf:ro \
+/scratch/work/public/singularity/cuda11.6.124-cudnn8.4.0.27-devel-ubuntu20.04.4.sif /bin/bash -c "
+
+. /ext3/miniconda3/etc/profile.d/conda.sh
+conda activate lhy
+python train.py --dataset voxelds --datapath /DS \
+ --trainlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_train.txt \
+ --testlist /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/filenames/DS_test.txt \
+ --epochs 20 --lrepochs "10,16:2" --logdir /scratch/yw3076/lhy/stereo_pl_nav/scripts/voxelstereonet/logs \
+ --batch_size 16 --test_batch_size 16 --summary_freq 10 --loader_workers 8 \
+ --cost_vol_type even --model Voxel2D_sparse --weighted_loss
+"
