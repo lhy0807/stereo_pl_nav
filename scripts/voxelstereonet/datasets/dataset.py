@@ -1,7 +1,6 @@
 import os
-import random
-from turtle import right
 import numpy as np
+import skimage.measure
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
@@ -570,6 +569,7 @@ class VoxelISECDataset(Dataset):
         # set the maximum perception depth
         self.max_depth = 6.4
         self.transform = transform
+        self.grid_sizes = [8, 16, 32, 64]
 
         # calculate voxel cost volume disparity set
         vox_cost_vol_disp_set = set()
@@ -644,11 +644,15 @@ class VoxelISECDataset(Dataset):
                 left_img = processed(left_img)
                 right_img = processed(right_img)
 
-        # calcualte depth for ground truth disparity map
+        # downsample 64x64x64 to 32, 16, 8
+        all_vox_grid_gt = [vox_grid_gt]
+        while len(all_vox_grid_gt) != len(self.grid_sizes):
+            all_vox_grid_gt.append(skimage.measure.block_reduce(all_vox_grid_gt[-1], 2, np.max))
+        all_vox_grid_gt.reverse()
 
         return {"left": left_img,
                 "right": right_img,
-                "voxel_grid": vox_grid_gt,
+                "voxel_grid": all_vox_grid_gt,
                 "vox_cost_vol_disps": self.vox_cost_vol_disps,
                 "top_pad": 0,
                 "right_pad": 0,
